@@ -32,8 +32,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO(shane) build object map from persisted files
 	objectMap := make(map[string]bool)
+	if err = indexDataDir(objectMap, &dataDir); err != nil {
+		logger.Fatalf("Failed to index data directory: %v \n", err)
+	}
 
 	router := mux.NewRouter()
 
@@ -45,7 +47,7 @@ func main() {
 			return
 		}
 
-		data, err := readObject(oid, dataDir)
+		data, err := readObject(oid, &dataDir)
 		if err != nil {
 			w.WriteHeader(500)
 			return
@@ -82,7 +84,7 @@ func main() {
 		}
 
 		objectMap[oid] = true
-		writeObject(oid, bytes, dataDir)
+		writeObject(oid, bytes, &dataDir)
 
 		_, err = io.WriteString(w, oid)
 		if err != nil {
@@ -133,6 +135,18 @@ func createDataDir() (string, error) {
 	return dataDir, os.MkdirAll(dataDir, 0770)
 }
 
+func indexDataDir(objectMap map[string]bool, dataDir *string) error {
+	files, err := ioutil.ReadDir(*dataDir)
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		objectMap[file.Name()] = true
+	}
+
+	return nil
+}
+
 func randomOid(length int) string {
 	const characters = "abcdefghijklmnopqrstuvwxyz"
 
@@ -148,13 +162,13 @@ func randomOid(length int) string {
 	return string(bytes)
 }
 
-func writeObject(oid string, data []byte, dataDir string) {
+func writeObject(oid string, data []byte, dataDir *string) {
 	if err := ioutil.WriteFile(objectPath(oid, dataDir), data, 0660); err != nil {
 		logger.Errorf("Failed to write object %s to disk: %v \n", oid, err)
 	}
 }
 
-func readObject(oid string, dataDir string) ([]byte, error) {
+func readObject(oid string, dataDir *string) ([]byte, error) {
 	data, err := ioutil.ReadFile(objectPath(oid, dataDir))
 	if err != nil {
 		logger.Errorf("Failed to read object %s from disk: %v \n", oid, err)
@@ -162,6 +176,6 @@ func readObject(oid string, dataDir string) ([]byte, error) {
 	return data, err
 }
 
-func objectPath(oid string, dataDir string) string {
-	return filepath.Join(dataDir, oid)
+func objectPath(oid string, dataDir *string) string {
+	return filepath.Join(*dataDir, oid)
 }
