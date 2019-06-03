@@ -21,7 +21,7 @@ const defaultAddress = ":4444"
 const defaultDataDir = "~/dead-drop"
 
 func main() {
-	log := initLogger()
+	log := logger.Init("Logger", true, true, ioutil.Discard)
 	defer log.Close()
 
 	loadConfig()
@@ -99,10 +99,6 @@ func main() {
 
 	addr := viper.GetString("addr")
 	_ = http.ListenAndServe(addr, n)
-}
-
-func initLogger() *logger.Logger {
-	return logger.Init("Logger", true, true, ioutil.Discard)
 }
 
 func loadConfig() {
