@@ -5,15 +5,20 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/google/logger"
 	"github.com/gorilla/mux"
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 	"github.com/urfave/negroni"
 )
 
 const oidLen = 16
 const maxOidAttempts = 16
+const defaultAddress = ":4444"
+const defaultDataDir = "~/dead-drop"
 
 func main() {
 	log := initLogger()
@@ -21,7 +26,16 @@ func main() {
 
 	loadConfig()
 
-	objectMap := make(map[string][]byte)
+	dataDir, err := createDataDir()
+	if err != nil {
+		logger.Fatalf("Failed to create data directory: %v \n", err)
+		os.Exit(1)
+	}
+
+	objectMap := make(map[string]bool)
+	if err = indexDataDir(objectMap, &dataDir); err != nil {
+		logger.Fatalf("Failed to index data directory: %v \n", err)
+	}
 
 	router := mux.NewRouter()
 
@@ -29,7 +43,17 @@ func main() {
 		params := mux.Vars(req)
 		oid := params["oid"]
 
-		_, err := w.Write(objectMap[oid])
+		if _, ok := objectMap[oid]; !ok {
+			return
+		}
+
+		data, err := readObject(oid, &dataDir)
+		if err != nil {
+			w.WriteHeader(500)
+			return
+		}
+
+		_, err = w.Write(data)
 		if err != nil {
 			logger.Errorf("Failed to write object response: %v \n", err)
 			w.WriteHeader(500)
@@ -59,7 +83,8 @@ func main() {
 			}
 		}
 
-		objectMap[oid] = bytes
+		objectMap[oid] = true
+		writeObject(oid, bytes, &dataDir)
 
 		_, err = io.WriteString(w, oid)
 		if err != nil {
@@ -87,7 +112,8 @@ func loadConfig() {
 	viper.AddConfigPath("$HOME/.dead-drop/")
 	viper.AddConfigPath(".")
 
-	viper.SetDefault("addr", ":4444")
+	viper.SetDefault("addr", defaultAddress)
+	viper.SetDefault("data_dir", defaultDataDir)
 
 	err := viper.ReadInConfig()
 	if err != nil {
@@ -99,6 +125,26 @@ func loadConfig() {
 			logger.Warningf("Failed to load config file: %v \n", err)
 		}
 	}
+}
+
+func createDataDir() (string, error) {
+	dataDir, err := homedir.Expand(viper.GetString("data_dir"))
+	if err != nil {
+		return "", err
+	}
+	return dataDir, os.MkdirAll(dataDir, 0770)
+}
+
+func indexDataDir(objectMap map[string]bool, dataDir *string) error {
+	files, err := ioutil.ReadDir(*dataDir)
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		objectMap[file.Name()] = true
+	}
+
+	return nil
 }
 
 func randomOid(length int) string {
@@ -114,4 +160,22 @@ func randomOid(length int) string {
 		bytes[i] = characters[b%modulo]
 	}
 	return string(bytes)
+}
+
+func writeObject(oid string, data []byte, dataDir *string) {
+	if err := ioutil.WriteFile(objectPath(oid, dataDir), data, 0660); err != nil {
+		logger.Errorf("Failed to write object %s to disk: %v \n", oid, err)
+	}
+}
+
+func readObject(oid string, dataDir *string) ([]byte, error) {
+	data, err := ioutil.ReadFile(objectPath(oid, dataDir))
+	if err != nil {
+		logger.Errorf("Failed to read object %s from disk: %v \n", oid, err)
+	}
+	return data, err
+}
+
+func objectPath(oid string, dataDir *string) string {
+	return filepath.Join(*dataDir, oid)
 }
