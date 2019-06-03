@@ -28,13 +28,12 @@ func main() {
 
 	dataDir, err := createDataDir()
 	if err != nil {
-		logger.Fatalf("Failed to create data directory: %v \n", err)
-		os.Exit(1)
+		logger.Fatalf("Failed to create data directory: %v\n", err)
 	}
 
 	objectMap := make(map[string]bool)
 	if err = indexDataDir(objectMap, &dataDir); err != nil {
-		logger.Fatalf("Failed to index data directory: %v \n", err)
+		logger.Fatalf("Failed to index data directory: %v\n", err)
 	}
 
 	router := mux.NewRouter()
@@ -55,7 +54,7 @@ func main() {
 
 		_, err = w.Write(data)
 		if err != nil {
-			logger.Errorf("Failed to write object response: %v \n", err)
+			logger.Errorf("Failed to write object response: %v\n", err)
 			w.WriteHeader(500)
 			return
 		}
@@ -64,7 +63,7 @@ func main() {
 	router.HandleFunc("/d", func(w http.ResponseWriter, req *http.Request) {
 		bytes, err := ioutil.ReadAll(req.Body)
 		if err != nil {
-			logger.Errorf("Failed to read object body: %v \n", err)
+			logger.Errorf("Failed to read object body: %v\n", err)
 			w.WriteHeader(500)
 			return
 		}
@@ -88,7 +87,7 @@ func main() {
 
 		_, err = io.WriteString(w, oid)
 		if err != nil {
-			logger.Errorf("Failed to write object response: %v \n", err)
+			logger.Errorf("Failed to write object response: %v\n", err)
 			w.WriteHeader(500)
 			return
 		}
@@ -148,7 +147,7 @@ func randomOid(length int) string {
 
 	bytes := make([]byte, length)
 	if _, err := rand.Read(bytes); err != nil {
-		logger.Fatalf("Failed to generate random oid: %v \n", err)
+		logger.Fatalf("Failed to generate random oid: %v\n", err)
 	}
 
 	modulo := byte(len(characters))
@@ -160,14 +159,14 @@ func randomOid(length int) string {
 
 func writeObject(oid string, data []byte, dataDir *string) {
 	if err := ioutil.WriteFile(objectPath(oid, dataDir), data, 0660); err != nil {
-		logger.Errorf("Failed to write object %s to disk: %v \n", oid, err)
+		logger.Errorf("Failed to write object %s to disk: %v\n", oid, err)
 	}
 }
 
 func readObject(oid string, dataDir *string) ([]byte, error) {
 	data, err := ioutil.ReadFile(objectPath(oid, dataDir))
 	if err != nil {
-		logger.Errorf("Failed to read object %s from disk: %v \n", oid, err)
+		logger.Errorf("Failed to read object %s from disk: %v\n", oid, err)
 	}
 	return data, err
 }
