@@ -3,11 +3,10 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/spf13/cobra"
 	"io/ioutil"
 	"net/http"
 	"os"
-
-	"github.com/spf13/cobra"
 )
 
 func main() {
