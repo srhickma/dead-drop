@@ -24,9 +24,9 @@ func main() {
 
 	router := mux.NewRouter()
 
-	router.HandleFunc("/d/{oid}", handler.handlePull).Methods("GET")
-
-	router.HandleFunc("/d", handler.handleDrop).Methods("POST")
+	router.Handle("/d/{oid}", authenticate(handler.handlePull)).Methods("GET")
+	router.Handle("/d", authenticate(handler.handleDrop)).Methods("POST")
+	router.HandleFunc("/token", handler.handleToken).Methods("GET")
 
 	n := negroni.Classic()
 	n.UseHandler(router)
