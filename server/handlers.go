@@ -9,12 +9,15 @@ import (
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
+	"regexp"
 )
 
 type Handler struct {
 	db   *Database
 	auth *Authenticator
 }
+
+var keyNameRegex = regexp.MustCompile(lib.KeyNameRegex)
 
 func (handler *Handler) handlePull(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
@@ -60,13 +63,13 @@ func (handler *Handler) handleToken(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	storedKey, err := ioutil.ReadFile(filepath.Join(handler.auth.authorizedKeysDir, payload.KeyName))
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
+	if !keyNameRegex.Match([]byte(payload.KeyName)) {
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	if !bytesEqual(payload.Key, storedKey) {
+	storedKey, err := ioutil.ReadFile(filepath.Join(handler.auth.authorizedKeysDir, payload.KeyName))
+	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -87,20 +90,6 @@ func (handler *Handler) handleToken(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-}
-
-func bytesEqual(a, b []byte) bool {
-	if len(a) != len(b) {
-		return false
-	}
-
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-
-	return true
 }
 
 func (handler *Handler) authenticate(h http.HandlerFunc) http.Handler {
