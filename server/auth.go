@@ -11,14 +11,15 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/logger"
 	"github.com/mitchellh/go-homedir"
+	"sync"
 	"time"
 )
 
 const UnauthorizedErr = Error("math: square root of negative number")
 
-// TODO(shane) rotate the secret randomly
 type Authenticator struct {
-	secret string
+	secret []byte
+	secretLock sync.RWMutex
 	authorizedKeysDir string
 }
 
@@ -28,9 +29,25 @@ func newAuthenticator(authorizedKeysDirPath string) *Authenticator {
 		logger.Fatalf("Failed to expand authorized keys file path: %v\n", err)
 	}
 
-	return &Authenticator {
-		secret: "TODO PUT A RANDOM SECRET HERE!!!!!",
+	authenticator := &Authenticator {
+		secret: newSecret(),
 		authorizedKeysDir: authorizedKeysDir,
+	}
+
+	go authenticator.secretRotator()
+
+	return authenticator
+}
+
+func (auth *Authenticator) secretRotator() {
+	const rotationSeconds = 16
+
+	for {
+		time.Sleep(rotationSeconds * time.Second)
+
+		auth.secretLock.Lock()
+		auth.secret = newSecret()
+		auth.secretLock.Unlock()
 	}
 }
 
@@ -44,10 +61,12 @@ func (auth *Authenticator) generateToken(pkeyBytes []byte) (string, error) {
 		"exp": time.Now().Add(time.Second).Unix(),
 	})
 
-	signedToken, err := token.SignedString([]byte(auth.secret))
+	auth.secretLock.RLock()
+	signedToken, err := token.SignedString(auth.secret)
 	if err != nil {
 		return "", err
 	}
+	auth.secretLock.RUnlock()
 
 	pkeyDer, _ := pem.Decode(pkeyBytes)
 	if pkeyDer == nil {
@@ -65,13 +84,15 @@ func (auth *Authenticator) generateToken(pkeyBytes []byte) (string, error) {
 }
 
 func (auth *Authenticator) validateToken(tokenString string) bool {
+	auth.secretLock.RLock()
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
-		return []byte(auth.secret), nil
+		return auth.secret, nil
 	})
+	auth.secretLock.RUnlock()
 	if err != nil {
 		return false
 	}
@@ -94,4 +115,15 @@ func (auth *Authenticator) randomClaim() string {
 		bytes[i] = characters[b%modulo]
 	}
 	return string(bytes)
+}
+
+func newSecret() []byte {
+	const length = 64
+
+	bytes := make([]byte, length)
+	if _, err := rand.Read(bytes); err != nil {
+		logger.Fatalf("Failed to generate random secret: %v\n", err)
+	}
+
+	return bytes
 }

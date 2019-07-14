@@ -93,15 +93,9 @@ func drop(filePath string, remote string) (string, error) {
 		return "", fmt.Errorf("error building request: %v", err)
 	}
 
-	token, err := authenticate(remote, []byte(examplePublicKey), "key-name")
-	if err != nil {
-		return "", fmt.Errorf("authentication failed: %v", err)
-	}
-
-	req.Header.Set("Authorization", token)
 	req.Header.Set("Content-Type", "application/octet-stream")
 
-	resp, err := client.Do(req)
+	resp, err := makeAuthenticatedRequest(client, req, remote)
 	if err != nil {
 		return "", fmt.Errorf("request failed: %v", err)
 	}
@@ -127,14 +121,7 @@ func pull(remote string, oid string, destPath string) error {
 		return fmt.Errorf("error building request: %v", err)
 	}
 
-	token, err := authenticate(remote, []byte(examplePublicKey), "key-name")
-	if err != nil {
-		return fmt.Errorf("authentication failed: %v", err)
-	}
-
-	req.Header.Set("Authorization", token)
-
-	resp, err := client.Do(req)
+	resp, err := makeAuthenticatedRequest(client, req, remote)
 	if err != nil {
 		return fmt.Errorf("request failed: %v", err)
 	}
@@ -183,6 +170,32 @@ func keyGen(privPath string, pubPath string) error {
 	fmt.Printf("Wrote public key to %s\n", pubPath)
 
 	return nil
+}
+
+func makeAuthenticatedRequest(client *http.Client, req *http.Request, remote string) (*http.Response, error) {
+	for i := 0; true; i++ {
+		token, err := authenticate(remote, []byte(examplePublicKey), "key-name")
+		if err != nil {
+			return nil, fmt.Errorf("authentication failed: %v", err)
+		}
+
+		req.Header.Set("Authorization", token)
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode == http.StatusUnauthorized && i < 1 {
+			// If we get here it is because the JWT secret rotated between the two requests.
+			// This happens infrequently, so retrying will succeed.
+			continue
+		}
+
+		return resp, nil
+	}
+
+	// Unreachable
+	return nil, nil
 }
 
 func authenticate(remote string, key []byte, keyName string) (string, error) {
