@@ -1,16 +1,21 @@
 package main
 
 import (
+	"dead-drop/lib"
 	"github.com/google/logger"
 	"github.com/gorilla/mux"
 	"github.com/spf13/viper"
 	"github.com/urfave/negroni"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 )
 
-const defaultAddress = ":4444"
-const defaultDataDir = "~/dead-drop"
+type Error string
+
+func (e Error) Error() string {
+	return string(e)
+}
 
 func main() {
 	log := logger.Init("Logger", true, true, ioutil.Discard)
@@ -19,14 +24,14 @@ func main() {
 	loadConfig()
 
 	db := initDatabase(viper.GetString("data_dir"))
-
-	handler := &Handler {db}
+	auth := newAuthenticator(viper.GetString("keys_dir"))
+	handler := &Handler{db, auth}
 
 	router := mux.NewRouter()
 
-	router.HandleFunc("/d/{oid}", handler.handlePull).Methods("GET")
-
-	router.HandleFunc("/d", handler.handleDrop).Methods("POST")
+	router.Handle("/d/{oid}", handler.authenticate(handler.handlePull)).Methods("GET")
+	router.Handle("/d", handler.authenticate(handler.handleDrop)).Methods("POST")
+	router.HandleFunc("/token", handler.handleToken).Methods("POST")
 
 	n := negroni.Classic()
 	n.UseHandler(router)
@@ -36,14 +41,16 @@ func main() {
 }
 
 func loadConfig() {
-	viper.SetConfigName("conf")
+	// TODO(shane) make the configuration name and directory configurable.
+	viper.SetConfigName(lib.DefaultConfigName)
 
-	viper.AddConfigPath("/etc/dead-drop/")
-	viper.AddConfigPath("$HOME/.dead-drop/")
+	viper.AddConfigPath(filepath.Join("/etc", lib.DefaultConfigDir))
+	viper.AddConfigPath(filepath.Join("$HOME", lib.DefaultConfigDir))
 	viper.AddConfigPath(".")
 
-	viper.SetDefault("addr", defaultAddress)
-	viper.SetDefault("data_dir", defaultDataDir)
+	viper.SetDefault("addr", ":4444")
+	viper.SetDefault("data_dir", "~/dead-drop")
+	viper.SetDefault("keys_dir", filepath.Join("~", lib.DefaultConfigDir, "keys"))
 
 	err := viper.ReadInConfig()
 	if err != nil {
