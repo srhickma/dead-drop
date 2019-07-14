@@ -18,8 +18,8 @@ import (
 const UnauthorizedErr = Error("math: square root of negative number")
 
 type Authenticator struct {
-	secret []byte
-	secretLock sync.RWMutex
+	secret            []byte
+	secretLock        sync.RWMutex
 	authorizedKeysDir string
 }
 
@@ -29,8 +29,8 @@ func newAuthenticator(authorizedKeysDirPath string) *Authenticator {
 		logger.Fatalf("Failed to expand authorized keys file path: %v\n", err)
 	}
 
-	authenticator := &Authenticator {
-		secret: newSecret(),
+	authenticator := &Authenticator{
+		secret:            newSecret(),
 		authorizedKeysDir: authorizedKeysDir,
 	}
 
@@ -56,7 +56,7 @@ func (auth *Authenticator) checkPublicKey(pkeyBytes []byte) bool {
 }
 
 func (auth *Authenticator) generateToken(pkeyBytes []byte) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims{
 		"ran": auth.randomClaim(),
 		"exp": time.Now().Add(time.Second).Unix(),
 	})

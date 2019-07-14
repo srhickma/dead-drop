@@ -1,12 +1,14 @@
 package main
 
 import (
+	"dead-drop/lib"
 	"github.com/google/logger"
 	"github.com/gorilla/mux"
 	"github.com/spf13/viper"
 	"github.com/urfave/negroni"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 )
 
 type Error string
@@ -23,7 +25,7 @@ func main() {
 
 	db := initDatabase(viper.GetString("data_dir"))
 	auth := newAuthenticator(viper.GetString("keys_dir"))
-	handler := &Handler {db, auth}
+	handler := &Handler{db, auth}
 
 	router := mux.NewRouter()
 
@@ -39,15 +41,16 @@ func main() {
 }
 
 func loadConfig() {
-	viper.SetConfigName("conf")
+	// TODO(shane) make the configuration name and directory configurable.
+	viper.SetConfigName(lib.DefaultConfigName)
 
-	viper.AddConfigPath("/etc/dead-drop/")
-	viper.AddConfigPath("$HOME/.dead-drop/")
+	viper.AddConfigPath(filepath.Join("/etc", lib.DefaultConfigDir))
+	viper.AddConfigPath(filepath.Join("$HOME", lib.DefaultConfigDir))
 	viper.AddConfigPath(".")
 
 	viper.SetDefault("addr", ":4444")
 	viper.SetDefault("data_dir", "~/dead-drop")
-	viper.SetDefault("keys_dir", "~/.dead-drop/keys")
+	viper.SetDefault("keys_dir", filepath.Join("~", lib.DefaultConfigDir, "keys"))
 
 	err := viper.ReadInConfig()
 	if err != nil {

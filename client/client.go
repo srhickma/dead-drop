@@ -10,21 +10,82 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
-const examplePrivateKey = "-----BEGIN RSA PRIVATE KEY-----\nMIIJKgIBAAKCAgEAvHs49QMMO9XytbxJsGdbdX/yQWIe0tpHFdfQzja1Zl4GHIE3\nyKWwjNg074cNGzzfCj8ynOcIuK820GrXMCOi/d7tYOlpgNmYNP27/6n0e5/CCua3\nqTREU3b2J9sPaZHOZhxAx80dvJZ5sF7S0lShuSQNgN4HSf28tr2ypUR4t9+tDN9S\ne7lEycc4nRIZH+KfyqOLxVMAD1sFYGZDTCSbNPGf0gS2BttqjnpPieRzZCyXxMIi\n98s0yOKztg8i6jHbI95nXRfvhdPEd67dXuq3M0y8TOsIya4GRrLL0Dbux42lLuSt\nloaGXKjJZUmbyt0nfHlF6YTVyRdi4gAsd1Fheef5wDkj3ooIJMVGYTNcs/ffTnWb\niWHElBQrdu5/2hsotHvicQeWAYABNV8cjuhxNR/48FRdXxvBZ/wJjrmQJ6q/arkw\nXpsCrtWvI/ZZA6QaCxQRI3L5ldcpXEsUedyiXVW5MzQus/y/vR1ucADcgFUtRcgC\n4Oc505bpqAFyZDNHUC/TG6YgX7p0/vj5kr6voVM7XhPlTlU2NJZivXCBxuZ7MyrH\nL3CzkIIpC5M+OGW71uVXvxYvHoTG7APivnftUwspigFBStg0yOjWolfRE+OiDYvP\nu2ZLJVdOYEv3rzIee53GuKHD9P4P961tTijiIGcb6excr01nKEyqi9RRuoUCAwEA\nAQKCAgEAsDFAfUnsFcNasCjjedQk2yJQBG8FAXarHPAycZMS4C7k56Cj1R2OfRtf\n4MoOpnewyJNrbOFMddjVFN/LaWTm6QuMPBv2VE0Uy/Sl2cm2kho1+prS9Ym2lY+P\nbJKLRdTXbPzcUeqc8b544zbBPX1/8OKS/PSRO8nGr82FQplPgBPIYVAieyYl97oU\nYkCY3AWt+nAIKN3+IFymGgd+wZ82t7dn/5wHzUEvyyDrWawFco99EKGqrpl3LpM+\nC+L6cJNKl61AUvYdIq1j6727kw83Uu1Y2U6dWGsl0tExVeMEM+dlkwCShTQcRmJC\nYjz9Nham4uU7RaC3eNQzy7D94ExjIUZnPKRH7pAkB7jII0x/HwU+0fd3AcEKofe0\ny3tfWyU2HVcuw5V/tO3jdUDATWbxJOTwYSaJZ35Yv1z3C5wDwm30tcWB1+NEpo4Q\ne7KsW8EoHgbE4CfpCNAqEIbU9jbZyB4+isfKkj73LpKaaZuL+vBIdoDdc4DGWndn\nhkGwwFCRP3F8jFXDNZEfb0MBeee+SmYAqLDgyIfkl8FXom8+IIsZVVx49F1NSTJi\nKOkZrh4wqJowlXbB1Ld9UcSPj4BOFWg7fsUykvq9ierqDyt8EpKbPblTiu/6fj8q\nyyykOAZus2gwE2eciLm6v2RSmw0ArDxpWDDrqsHGj/L8oFsEk8ECggEBAO7lY5+d\n4n7++EgRDQ+Z/PhvsJSh+JXiJHBmUxpHt5i5oT3wsm1j8Q60kk3khMIACL/Vifhr\nN/IVTVEy1deX84wgGPiDcpsLq/4QUHbmo/bDn9tl35QYXw2+mkW09gTvxz4F9P42\nOJihamAJ9WPEMYwEwVigfNaZLEntnPa6rTXBOV98JJ8VVfKKIkKA9cf6pBW2JdNM\nmDra2h+5V70lC74sVTdTXpi0/Q3HdjK/5eYmwQYlyhFbYa06VNo+W+oYA3zg02bE\nu5WY+JMVYfCLRyNOapM2G7/QR763vdy8UGhoeDtNTyA/oL8bwwcbgKrxq4T5sqgo\ng5ZAV5dA7yMlky8CggEBAMn5zmk7jzsps2wX3E95ypGp9Cqddp8Jq1WVqEY76yHA\nblBp1/2ZlYAbWXBVu36iVN2+Jq5noYw4YdjxsnOW3VSdKhAjVq8l1m/k2k3fBl1t\nBTNO56/F7s8Wg4E9B02iraj0hpd+jr137GfpAfoBJdE74Loun9f1HYPvA/u2TWpt\n4uuidPqK4/zqQkKaUpQwzTfbrD6vVkJIgDauVDjPDzn79f7kZsfOz+VS9hLcOlRl\np5POvbJLKlEWv2dHor0Lk2P1gy/GeHkHb59qfo7wfzOIUclCWxsf8iXji4m11cBB\ngVETmwQGO67LDL0+WX6gMCpRMq1bCI8H/IcYGRVOMIsCggEBAOSDtgz7uKlj+Vju\nPoEa+lkmdVFnseKlY9fEeV+dFGjZv/wA3pw2ymIXpg8uNTNhVv0xJP3kiapeaAvw\nxY6pwgTauygUjK70tjubnWxu6I5lx+bVBs2hlmMOXIGrPN2yAvM4PYZhlTeix59A\nR2N8Syy1a8D8Gw4njK7WxJtaK89MmjXVCS7G+OS871KQCwqUnRpLltkM3l0F9Tn9\nT4kVA6uQup7md4k5LwpcLpsS5rWFgoP/5888iy1pq7rrhX5iJAvy/yTBsPHDVptT\nC9FNWOnT26wfSOHtOIOdPNcFpyCINeH77GFbm8bSpnaI/0YFT90uAJBL2LsDpwV+\nzoDfM28CggEAJ8fX68obT9/KwwOAFPc7+qyqtqoE7xYMdPLhDdRHX4JzN8thC0Xw\nuCaq2wFHyI1YgcQuAjPPEbsZKo2QREv2k+/QlRUgwaaGMcu1Y5kFu+j5GT31TB2E\nB627gPzwL05XPevLhpMash6opV6zUPZg6HEOthzwxqw0gAPXmQAzBz9Vbmu09pPc\ni7foDQ4wLZffE51ks4P9TVjSR/LWC8pciWMi9G0wATKup9BLPzO5GV5cPzR9EFzV\nnNsKH+FwICPjh9CXYhWJLO1WAuQKwUSFCTVURnuXTiRgoS3MEfeKfi9otPtTkNtZ\nbff4Ll3VaqdKVUtg29wON32vMzx/1D5uOQKCAQEAkbldqObJ3RsQJ2WFUTzj5mUS\nqP99S2C3jfpfzP0a6Khz1hR5zZjT2aDxBO8r9j6FvD1oVc36NqN5OGG038/rKQdw\n0W7+CWG2tnB1uIjeQQE9uILBwIX+WyEqt8JnN0le3DXyUDXkHFZdEazW2+ZZUxDV\niEu8HjSNI73dll7Af9UqTLLV8j7tiKYcipo9wDcMYtpDsyAsH1L2r7l2l4r6HXdI\nceBXxDYQ2FMvnUmqHrSl/iwSLpm92cC8/UPs/xdYQrpU0euWddvCiwQNbph7dLbk\nwMUwiYxwbqr8b0Gg7UV3voyvgm/t/4K1n9iYnRwTQImwAAEaGguw6OrAuyUIvg==\n-----END RSA PRIVATE KEY-----\n"
-const examplePublicKey = "-----BEGIN RSA PUBLIC KEY-----\nMIICCgKCAgEAvHs49QMMO9XytbxJsGdbdX/yQWIe0tpHFdfQzja1Zl4GHIE3yKWw\njNg074cNGzzfCj8ynOcIuK820GrXMCOi/d7tYOlpgNmYNP27/6n0e5/CCua3qTRE\nU3b2J9sPaZHOZhxAx80dvJZ5sF7S0lShuSQNgN4HSf28tr2ypUR4t9+tDN9Se7lE\nycc4nRIZH+KfyqOLxVMAD1sFYGZDTCSbNPGf0gS2BttqjnpPieRzZCyXxMIi98s0\nyOKztg8i6jHbI95nXRfvhdPEd67dXuq3M0y8TOsIya4GRrLL0Dbux42lLuStloaG\nXKjJZUmbyt0nfHlF6YTVyRdi4gAsd1Fheef5wDkj3ooIJMVGYTNcs/ffTnWbiWHE\nlBQrdu5/2hsotHvicQeWAYABNV8cjuhxNR/48FRdXxvBZ/wJjrmQJ6q/arkwXpsC\nrtWvI/ZZA6QaCxQRI3L5ldcpXEsUedyiXVW5MzQus/y/vR1ucADcgFUtRcgC4Oc5\n05bpqAFyZDNHUC/TG6YgX7p0/vj5kr6voVM7XhPlTlU2NJZivXCBxuZ7MyrHL3Cz\nkIIpC5M+OGW71uVXvxYvHoTG7APivnftUwspigFBStg0yOjWolfRE+OiDYvPu2ZL\nJVdOYEv3rzIee53GuKHD9P4P961tTijiIGcb6excr01nKEyqi9RRuoUCAwEAAQ==\n-----END RSA PUBLIC KEY-----\n"
+const privKeyFlag = "private-key"
+const pubKeyFlag = "public-key"
+
+var confFile string
 
 func main() {
-	var cmdDrop = &cobra.Command {
+	cobra.OnInitialize(loadConfig)
+
+	var rootCmd = &cobra.Command{Use: "dead"}
+	rootCmd.AddCommand(setupDropCmd(), setupPullCmd(), setupKeyGenCmd())
+
+	rootCmd.PersistentFlags().StringVar(&confFile, "config", "",
+		"config file (default is "+filepath.Join("$HOME", lib.DefaultConfigDir, lib.DefaultConfigName)+".yml)")
+
+	_ = rootCmd.Execute()
+}
+
+func loadConfig() {
+	if confFile != "" {
+		viper.SetConfigFile(confFile)
+	} else {
+		home, err := homedir.Dir()
+		if err != nil {
+			fmt.Printf("Failed to load default configuration: %v\n", err)
+			return
+		}
+
+		filepath.Join(home)
+
+		confDir, err := homedir.Expand(filepath.Join("~", lib.DefaultConfigDir))
+		if err != nil {
+			fmt.Printf("Failed to load default configuration: %v\n", err)
+			return
+		}
+
+		viper.AddConfigPath(confDir)
+		viper.SetConfigName(lib.DefaultConfigName)
+	}
+
+	if err := viper.ReadInConfig(); err != nil {
+		fmt.Printf("Error reading config file: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func bindKeyFlags(cmd *cobra.Command) {
+	cmd.PersistentFlags().String(privKeyFlag, "",
+		"Private key to use for authentication (e.g. generated by keygen)")
+
+	if err := viper.BindPFlag(privKeyFlag, cmd.PersistentFlags().Lookup(privKeyFlag)); err != nil {
+		fmt.Printf("Error binding %s flag for the %s command: %v\n", privKeyFlag, cmd.Name(), err)
+	}
+
+	cmd.PersistentFlags().String(pubKeyFlag, "",
+		"Public key to use for authentication (e.g. generated by keygen)")
+
+	if err := viper.BindPFlag(pubKeyFlag, cmd.PersistentFlags().Lookup(pubKeyFlag)); err != nil {
+		fmt.Printf("Error binding %s flag for the %s command: %v\n", pubKeyFlag, cmd.Name(), err)
+	}
+}
+
+func setupDropCmd() *cobra.Command {
+	cmdDrop := &cobra.Command{
 		Use:   "drop <file path> <remote>",
 		Short: "Drop a file to remote",
-		Args: cobra.MinimumNArgs(2),
+		Args:  cobra.MinimumNArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			filePath := args[0]
 			remote := strings.TrimSuffix(args[1], "/")
@@ -39,10 +100,16 @@ func main() {
 		},
 	}
 
-	var cmdPull = &cobra.Command {
+	bindKeyFlags(cmdDrop)
+
+	return cmdDrop
+}
+
+func setupPullCmd() *cobra.Command {
+	cmdPull := &cobra.Command{
 		Use:   "pull <remote> <oid> <destination path>",
 		Short: "Pull a dropped object from remote",
-		Args: cobra.MinimumNArgs(3),
+		Args:  cobra.MinimumNArgs(3),
 		Run: func(cmd *cobra.Command, args []string) {
 			remote := strings.TrimSuffix(args[0], "/")
 			oid := args[1]
@@ -57,10 +124,16 @@ func main() {
 		},
 	}
 
-	var cmdKeyGen = &cobra.Command {
+	bindKeyFlags(cmdPull)
+
+	return cmdPull
+}
+
+func setupKeyGenCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "keygen <private key path> <public key path>",
 		Short: "Generates an RSA key-pair, for use authenticating requests",
-		Args: cobra.MinimumNArgs(2),
+		Args:  cobra.MinimumNArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			privPath := args[0]
 			pubPath := args[1]
@@ -71,11 +144,6 @@ func main() {
 			}
 		},
 	}
-
-	var rootCmd = &cobra.Command{Use: "dead"}
-	rootCmd.AddCommand(cmdDrop, cmdPull, cmdKeyGen)
-
-	_ = rootCmd.Execute()
 }
 
 func drop(filePath string, remote string) (string, error) {
@@ -173,8 +241,25 @@ func keyGen(privPath string, pubPath string) error {
 }
 
 func makeAuthenticatedRequest(client *http.Client, req *http.Request, remote string) (*http.Response, error) {
+	rawPubKeyPath := viper.GetString(pubKeyFlag)
+	if rawPubKeyPath == "" {
+		return nil, fmt.Errorf("public key not specified")
+	}
+	pubKeyPath, err := homedir.Expand(rawPubKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("error locating public key: %v\n", err)
+	}
+
+	pathSplit := strings.Split(pubKeyPath, string(os.PathSeparator))
+	keyName := pathSplit[len(pathSplit)-1]
+
+	pubKeyBytes, err := ioutil.ReadFile(pubKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading public key '%s': %v", pubKeyPath, err)
+	}
+
 	for i := 0; true; i++ {
-		token, err := authenticate(remote, []byte(examplePublicKey), "key-name")
+		token, err := authenticate(remote, pubKeyBytes, keyName)
 		if err != nil {
 			return nil, fmt.Errorf("authentication failed: %v", err)
 		}
@@ -194,15 +279,24 @@ func makeAuthenticatedRequest(client *http.Client, req *http.Request, remote str
 		return resp, nil
 	}
 
-	// Unreachable
+	// Unreachable.
 	return nil, nil
 }
 
 func authenticate(remote string, key []byte, keyName string) (string, error) {
+	rawPrivKeyPath := viper.GetString(privKeyFlag)
+	if rawPrivKeyPath == "" {
+		return "", fmt.Errorf("private key not specified")
+	}
+	privKeyPath, err := homedir.Expand(rawPrivKeyPath)
+	if err != nil {
+		return "", fmt.Errorf("error locating private key: %v\n", err)
+	}
+
 	remoteUrl := fmt.Sprintf("%s/token", remote)
 
-	payload := lib.TokenRequestPayload {
-		Key: key,
+	payload := lib.TokenRequestPayload{
+		Key:     key,
 		KeyName: keyName,
 	}
 
@@ -221,7 +315,12 @@ func authenticate(remote string, key []byte, keyName string) (string, error) {
 
 	cipher, err := ioutil.ReadAll(resp.Body)
 
-	privKeyDer, _ := pem.Decode([]byte(examplePrivateKey))
+	privKeyBytes, err := ioutil.ReadFile(privKeyPath)
+	if err != nil {
+		return "", fmt.Errorf("error reading private key '%s': %v", privKeyPath, err)
+	}
+
+	privKeyDer, _ := pem.Decode(privKeyBytes)
 	if privKeyDer == nil {
 		return "", fmt.Errorf("failed to decode pem bytes\n")
 	}

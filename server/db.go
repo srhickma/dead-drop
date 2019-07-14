@@ -20,9 +20,9 @@ func initDatabase(dataDirPath string) *Database {
 		logger.Fatalf("Failed to index data directory: %v\n", err)
 	}
 
-	return &Database {
+	return &Database{
 		objectMap: objectMap,
-		dataDir: dataDir,
+		dataDir:   dataDir,
 	}
 }
 
@@ -48,7 +48,7 @@ func indexDataDir(objectMap map[string]bool, dataDir *string) error {
 
 type Database struct {
 	objectMap map[string]bool
-	dataDir string
+	dataDir   string
 }
 
 func (db *Database) pull(oid string) ([]byte, error) {
