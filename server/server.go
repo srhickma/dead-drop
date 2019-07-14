@@ -9,8 +9,11 @@ import (
 	"net/http"
 )
 
-const defaultAddress = ":4444"
-const defaultDataDir = "~/dead-drop"
+type Error string
+
+func (e Error) Error() string {
+	return string(e)
+}
 
 func main() {
 	log := logger.Init("Logger", true, true, ioutil.Discard)
@@ -19,14 +22,14 @@ func main() {
 	loadConfig()
 
 	db := initDatabase(viper.GetString("data_dir"))
-
-	handler := &Handler {db}
+	auth := newAuthenticator(viper.GetString("keys_dir"))
+	handler := &Handler {db, auth}
 
 	router := mux.NewRouter()
 
-	router.Handle("/d/{oid}", authenticate(handler.handlePull)).Methods("GET")
-	router.Handle("/d", authenticate(handler.handleDrop)).Methods("POST")
-	router.HandleFunc("/token", handler.handleToken).Methods("GET")
+	router.Handle("/d/{oid}", handler.authenticate(handler.handlePull)).Methods("GET")
+	router.Handle("/d", handler.authenticate(handler.handleDrop)).Methods("POST")
+	router.HandleFunc("/token", handler.handleToken).Methods("POST")
 
 	n := negroni.Classic()
 	n.UseHandler(router)
@@ -42,8 +45,9 @@ func loadConfig() {
 	viper.AddConfigPath("$HOME/.dead-drop/")
 	viper.AddConfigPath(".")
 
-	viper.SetDefault("addr", defaultAddress)
-	viper.SetDefault("data_dir", defaultDataDir)
+	viper.SetDefault("addr", ":4444")
+	viper.SetDefault("data_dir", "~/dead-drop")
+	viper.SetDefault("keys_dir", "~/.dead-drop/keys")
 
 	err := viper.ReadInConfig()
 	if err != nil {

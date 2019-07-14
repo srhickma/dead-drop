@@ -1,15 +1,19 @@
 package main
 
 import (
+	"dead-drop/lib"
+	"encoding/json"
 	"github.com/google/logger"
 	"github.com/gorilla/mux"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"path/filepath"
 )
 
 type Handler struct {
-	db *Database
+	db   *Database
+	auth *Authenticator
 }
 
 func (handler *Handler) handlePull(w http.ResponseWriter, req *http.Request) {
@@ -49,18 +53,33 @@ func (handler *Handler) handleDrop(w http.ResponseWriter, req *http.Request) {
 }
 
 func (handler *Handler) handleToken(w http.ResponseWriter, req *http.Request) {
-	// TODO(shane) check that public key exists
+	var payload lib.TokenRequestPayload
+	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+		logger.Errorf("Failed to decode authentication payload: %v\n", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
-	token, err := generateToken()
+	storedKey, err := ioutil.ReadFile(filepath.Join(handler.auth.authorizedKeysDir, payload.KeyName))
 	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	if !bytesEqual(payload.Key, storedKey) {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	token, err := handler.auth.generateToken(storedKey)
+	if err == UnauthorizedErr {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	} else if err != nil {
 		logger.Errorf("Failed to generate authorization token: %v\n", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
-	// TODO(shane) encrypt token with public key
-
-	logger.Infof("Returning token: %s\n", token)
 
 	_, err = io.WriteString(w, token)
 	if err != nil {
@@ -70,13 +89,25 @@ func (handler *Handler) handleToken(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func authenticate(h http.HandlerFunc) http.Handler {
+func bytesEqual(a, b []byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (handler *Handler) authenticate(h http.HandlerFunc) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		token := req.Header.Get("Authorization")
 
-		logger.Infof("Accepting token: %s\n", token)
-
-		if !validateToken(token) {
+		if !handler.auth.validateToken(token) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
