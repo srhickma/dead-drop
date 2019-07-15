@@ -1,6 +1,44 @@
 # dead-drop
 Secure anonymous file transfer and storage in the cloud.
 
+# Example Usage
+Start server:
+```
+$ mkdir -p ~/.dead-drop/keys
+$ bin/deadd
+```
+Generate an rsa key-pair, and copy the public key to the server:
+```
+$ bin/dead gen-key private.pem public.pem
+Wrote private key to private.pem
+Wrote public key to public.pem
+$ cp public.pem ~/.dead-drop/keys/root
+```
+Create a secret for local encryption:
+```
+$ echo 'put your secret here' >> enc.key
+```
+Drop an object:
+```
+$ bin/dead drop README.md --private-key private.pem --encryption-key enc.key --key-name root --remote http://localhost:4444
+Encrypting object with AES-CTR + HMAC-SHA-265 ...
+Uploading object ...
+Dropped README.md -> nidavyihdlxwbbda#O3vVpwfUHqC2mWPPDIEVekzuKT2IeQ4BeHbkbCYg8lk=
+```
+Pull the object:
+```
+$ bin/dead pull nidavyihdlxwbbda#O3vVpwfUHqC2mWPPDIEVekzuKT2IeQ4BeHbkbCYg8lk= dest-file --private-key private.pem --encryption-key enc.key --key-name root --remote http://localhost:4444
+Downloading object ...
+Verifying checksum ...
+Decrypting object with AES-CTR + HMAC-SHA-265 ...
+Pulled dest-file <- nidavyihdlxwbbda#O3vVpwfUHqC2mWPPDIEVekzuKT2IeQ4BeHbkbCYg8lk=
+```
+Verify the results:
+```
+$ diff dest-file README.md
+```
+NOTE: For simplicity, I have included the `private-key`, `encryption-key`, `key-name`, and `remote` flags in each command, however in general usage these should not change often, so they would be specified in a config file, and the drop/pull commands would be much less verbose.
+
 # Building
 Install some dependencies:
 ```
