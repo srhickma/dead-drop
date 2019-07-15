@@ -33,7 +33,8 @@ func main() {
 			startServer()
 		},
 	}
-	rootCmd.PersistentFlags().StringVar(&confFile, "config", "", "config file path")
+	rootCmd.PersistentFlags().StringVar(&confFile, "config", "",
+		"config file (default is "+filepath.Join("~", lib.DefaultConfigDir, lib.DefaultConfigName)+".yml)")
 
 	if err := rootCmd.Execute(); err != nil {
 		logger.Fatalf("Failed to execute command: %v\n", err)
@@ -52,12 +53,17 @@ func showGreeting() {
 func loadConfig() {
 	if confFile != "" {
 		viper.SetConfigFile(confFile)
+		logger.Infof("Loading configuration from %s\n", confFile)
 	} else {
+		dir := filepath.Join("~", lib.DefaultConfigDir)
+		viper.AddConfigPath(dir)
 		viper.SetConfigName(lib.DefaultConfigName)
-
-		viper.AddConfigPath(filepath.Join("/etc", lib.DefaultConfigDir))
-		viper.AddConfigPath(filepath.Join("$HOME", lib.DefaultConfigDir))
-		viper.AddConfigPath(".")
+		viper.SetConfigType(lib.DefaultConfigType)
+		logger.Infof(
+			"Searching for configuration at %s.%s\n",
+			filepath.Join(dir, lib.DefaultConfigName),
+			lib.DefaultConfigType,
+		)
 	}
 
 	viper.SetDefault("addr", ":4444")
@@ -73,6 +79,8 @@ func loadConfig() {
 		default:
 			logger.Warningf("Failed to load config file: %v \n", err)
 		}
+	} else {
+		logger.Infof("Successfully loaded configuration\n")
 	}
 }
 

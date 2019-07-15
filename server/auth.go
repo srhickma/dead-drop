@@ -31,6 +31,8 @@ func newAuthenticator(authorizedKeysDirPath string) *Authenticator {
 		logger.Fatalf("Failed to expand authorized keys file path: %v\n", err)
 	}
 
+	logger.Infof("Starting authenticator with authorized-keys directory %s\n", authorizedKeysDir)
+
 	authenticator := &Authenticator{
 		secret:            newSecret(),
 		authorizedKeysDir: authorizedKeysDir,
