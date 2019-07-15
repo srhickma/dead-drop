@@ -18,6 +18,7 @@ func (e Error) Error() string {
 }
 
 func main() {
+	showGreeting()
 	log := logger.Init("Logger", true, true, ioutil.Discard)
 	defer log.Close()
 
@@ -34,11 +35,23 @@ func main() {
 	router.Handle("/add-key", handler.authenticate(handler.handleAddKey)).Methods("POST")
 	router.HandleFunc("/token", handler.handleToken).Methods("POST")
 
-	n := negroni.Classic()
-	n.UseHandler(router)
+	negroniServer := negroni.Classic()
+	negroniServer.UseHandler(router)
 
 	addr := viper.GetString("addr")
-	_ = http.ListenAndServe(addr, n)
+	logger.Infof("Starting server on %s", addr)
+	if err := http.ListenAndServe(addr, negroniServer); err != nil {
+		logger.Fatalf("Failed to start server: %v\n", err)
+	}
+}
+
+func showGreeting() {
+	data, err := Asset("data/greeting.txt")
+	if err != nil {
+		return
+	}
+
+	println(string(data))
 }
 
 func loadConfig() {
