@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/sha512"
 	"crypto/x509"
 	"dead-drop/lib"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -34,7 +36,7 @@ func main() {
 	rootCmd.AddCommand(setupDropCmd(), setupPullCmd(), setupAddKeyCmd(), setupKeyGenCmd())
 
 	rootCmd.PersistentFlags().StringVar(&confFile, "config", "",
-		"config file (default is "+filepath.Join("~", lib.DefaultConfigDir, lib.DefaultConfigName)+".yml)")
+		"config file (default is "+filepath.Join("$HOME", lib.DefaultConfigDir, lib.DefaultConfigName)+".yml)")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Printf("FATAL: Failed to execute command: %v\n", err)
@@ -46,7 +48,7 @@ func loadConfig() {
 	if confFile != "" {
 		viper.SetConfigFile(confFile)
 	} else {
-		viper.AddConfigPath(filepath.Join("~", lib.DefaultConfigDir))
+		viper.AddConfigPath(filepath.Join("$HOME", lib.DefaultConfigDir))
 		viper.SetConfigName(lib.DefaultConfigName)
 		viper.SetConfigType(lib.DefaultConfigType)
 	}
@@ -95,13 +97,13 @@ func setupDropCmd() *cobra.Command {
 
 			bindRemoteCmdFlags(cmd)
 
-			oid, err := drop(filePath)
+			or, err := drop(filePath)
 			if err != nil {
 				fmt.Printf("ERROR: Failed to drop file '%s': %v\n", filePath, err)
 				os.Exit(1)
 			}
 
-			fmt.Printf("Dropped %s -> %s\n", filePath, oid)
+			fmt.Printf("Dropped %s -> %s\n", filePath, or)
 		},
 	}
 
@@ -112,21 +114,21 @@ func setupDropCmd() *cobra.Command {
 
 func setupPullCmd() *cobra.Command {
 	cmdPull := &cobra.Command{
-		Use:   "pull <oid> <destination path>",
+		Use:   "pull <object> <destination path>",
 		Short: "Pull a dropped object from remote",
 		Args:  cobra.MinimumNArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
-			oid := args[0]
+			object := args[0]
 			destPath := args[1]
 
 			bindRemoteCmdFlags(cmd)
 
-			if err := pull(oid, destPath); err != nil {
-				fmt.Printf("ERROR: Failed to pull object '%s': %v\n", oid, err)
+			if err := pull(object, destPath); err != nil {
+				fmt.Printf("ERROR: Failed to pull object '%s': %v\n", object, err)
 				os.Exit(1)
 			}
 
-			fmt.Printf("Pulled %s <- %s\n", destPath, oid)
+			fmt.Printf("Pulled %s <- %s\n", destPath, object)
 		},
 	}
 
@@ -177,15 +179,20 @@ func setupKeyGenCmd() *cobra.Command {
 	}
 }
 
-func drop(filePath string) (string, error) {
+func checksum(data []byte) string {
+	checksumBytes := sha256.Sum256(data)
+	return base64.URLEncoding.EncodeToString(checksumBytes[:])
+}
+
+func drop(filePath string) (*ObjectReference, error) {
 	remote, err := getStringFlag(remoteFlag)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
-		return "", fmt.Errorf("error reading file '%s': %v", filePath, err)
+		return nil, fmt.Errorf("error reading file '%s': %v", filePath, err)
 	}
 
 	remoteUrl := fmt.Sprintf("%s/d", remote)
@@ -194,31 +201,40 @@ func drop(filePath string) (string, error) {
 
 	req, err := http.NewRequest("POST", remoteUrl, bytes.NewReader(data))
 	if err != nil {
-		return "", fmt.Errorf("error building request: %v", err)
+		return nil, fmt.Errorf("error building request: %v", err)
 	}
 
 	req.Header.Set("Content-Type", "application/octet-stream")
 
 	resp, err := makeAuthenticatedRequest(client, req, remote)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	oid, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", fmt.Errorf("error reading response body: %v", err)
+		return nil, fmt.Errorf("error reading response body: %v", err)
 	}
 
-	return string(oid), nil
+	or := &ObjectReference{
+		oid: string(oid),
+		checksum: checksum(data),
+	}
+	return or, nil
 }
 
-func pull(oid string, destPath string) error {
+func pull(object string, destPath string) error {
+	or, err := parseObjectReference(object)
+	if err != nil {
+		return err
+	}
+
 	remote, err := getStringFlag(remoteFlag)
 	if err != nil {
 		return err
 	}
 
-	remoteUrl := fmt.Sprintf("%s/d/%s", remote, oid)
+	remoteUrl := fmt.Sprintf("%s/d/%s", remote, or.oid)
 
 	client := &http.Client{}
 
@@ -235,6 +251,10 @@ func pull(oid string, destPath string) error {
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("error reading response body: %v", err)
+	}
+
+	if checksum(data) != or.checksum {
+		return fmt.Errorf("object integrity compromised, discarding unsafe pull")
 	}
 
 	if err = ioutil.WriteFile(destPath, data, lib.ObjectPerms); err != nil {
