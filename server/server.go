@@ -55,7 +55,7 @@ func loadConfig() {
 		viper.SetConfigFile(confFile)
 		logger.Infof("Loading configuration from %s\n", confFile)
 	} else {
-		dir := filepath.Join("~", lib.DefaultConfigDir)
+		dir := filepath.Join("$HOME", lib.DefaultConfigDir)
 		viper.AddConfigPath(dir)
 		viper.SetConfigName(lib.DefaultConfigName)
 		viper.SetConfigType(lib.DefaultConfigType)
