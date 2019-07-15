@@ -79,8 +79,8 @@ func (auth *Authenticator) generateToken(pkeyBytes []byte) (string, error) {
 		return "", UnauthorizedErr
 	}
 
-	cipher, err := rsa.EncryptOAEP(sha512.New(), rand.Reader, pkey, []byte(signedToken), []byte(lib.TokenCipherLabel))
-	return string(cipher), err
+	ciphertext, err := rsa.EncryptOAEP(sha512.New(), rand.Reader, pkey, []byte(signedToken), []byte(lib.TokenCipherLabel))
+	return string(ciphertext), err
 }
 
 func (auth *Authenticator) validateToken(tokenString string) bool {

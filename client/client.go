@@ -24,6 +24,7 @@ import (
 
 const remoteFlag = "remote"
 const privKeyFlag = "private-key"
+const encryptionKeyFlag = "encryption-key"
 const keyNameFlag = "key-name"
 
 var confFile string
@@ -74,6 +75,14 @@ func bindPFlag(cmd *cobra.Command, flag string) {
 	}
 }
 
+func setupEncryptionFlags(cmd *cobra.Command) {
+	cmd.PersistentFlags().String(encryptionKeyFlag, "", "Encryption key")
+}
+
+func bindEncryptionFlags(cmd *cobra.Command) {
+	bindPFlag(cmd, encryptionKeyFlag)
+}
+
 func setupRemoteCmdFlags(cmd *cobra.Command) {
 	cmd.PersistentFlags().String(remoteFlag, "", "Remote dead-drop host")
 	cmd.PersistentFlags().String(privKeyFlag, "",
@@ -88,7 +97,7 @@ func bindRemoteCmdFlags(cmd *cobra.Command) {
 }
 
 func setupDropCmd() *cobra.Command {
-	cmdDrop := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "drop <file path>",
 		Short: "Drop a file to remote",
 		Args:  cobra.MinimumNArgs(1),
@@ -96,6 +105,7 @@ func setupDropCmd() *cobra.Command {
 			filePath := args[0]
 
 			bindRemoteCmdFlags(cmd)
+			bindEncryptionFlags(cmd)
 
 			or, err := drop(filePath)
 			if err != nil {
@@ -107,13 +117,14 @@ func setupDropCmd() *cobra.Command {
 		},
 	}
 
-	setupRemoteCmdFlags(cmdDrop)
+	setupRemoteCmdFlags(cmd)
+	setupEncryptionFlags(cmd)
 
-	return cmdDrop
+	return cmd
 }
 
 func setupPullCmd() *cobra.Command {
-	cmdPull := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "pull <object> <destination path>",
 		Short: "Pull a dropped object from remote",
 		Args:  cobra.MinimumNArgs(2),
@@ -122,6 +133,7 @@ func setupPullCmd() *cobra.Command {
 			destPath := args[1]
 
 			bindRemoteCmdFlags(cmd)
+			bindEncryptionFlags(cmd)
 
 			if err := pull(object, destPath); err != nil {
 				fmt.Printf("ERROR: Failed to pull object '%s': %v\n", object, err)
@@ -132,13 +144,14 @@ func setupPullCmd() *cobra.Command {
 		},
 	}
 
-	setupRemoteCmdFlags(cmdPull)
+	setupRemoteCmdFlags(cmd)
+	setupEncryptionFlags(cmd)
 
-	return cmdPull
+	return cmd
 }
 
 func setupAddKeyCmd() *cobra.Command {
-	cmdAddKey := &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "add-key <public key path> <key name>",
 		Short: "Add a public key as an authorized key on remote",
 		Args:  cobra.MinimumNArgs(2),
@@ -157,9 +170,9 @@ func setupAddKeyCmd() *cobra.Command {
 		},
 	}
 
-	setupRemoteCmdFlags(cmdAddKey)
+	setupRemoteCmdFlags(cmd)
 
-	return cmdAddKey
+	return cmd
 }
 
 func setupKeyGenCmd() *cobra.Command {
@@ -184,6 +197,20 @@ func checksum(data []byte) string {
 	return base64.URLEncoding.EncodeToString(checksumBytes[:])
 }
 
+func loadEncryptionKey(rawPath string) ([]byte, error) {
+	encryptionKeyPath, err := homedir.Expand(rawPath)
+	if err != nil {
+		return nil, fmt.Errorf("error locating encryption key: %v", err)
+	}
+
+	encryptionKey, err := ioutil.ReadFile(encryptionKeyPath)
+	if err != nil {
+		return nil, fmt.Errorf("error reading encryption key '%s': %v", encryptionKeyPath, err)
+	}
+
+	return encryptionKey, nil
+}
+
 func drop(filePath string) (*ObjectReference, error) {
 	remote, err := getStringFlag(remoteFlag)
 	if err != nil {
@@ -193,6 +220,23 @@ func drop(filePath string) (*ObjectReference, error) {
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading file '%s': %v", filePath, err)
+	}
+
+	encryptionKeyRawPath := viper.GetString(encryptionKeyFlag)
+	if encryptionKeyRawPath != "" {
+		fmt.Printf("Encrypting object with AES-CTR + HMAC-SHA-265 ...\n")
+
+		encryptionKey, err := loadEncryptionKey(encryptionKeyRawPath)
+		if err != nil {
+			return nil, err
+		}
+
+		data, err = encrypt(encryptionKey, data)
+		if err != nil {
+			return nil, fmt.Errorf("error encrypting object: %v", err)
+		}
+	} else {
+		fmt.Printf("Dropping without encryption, be careful!\n")
 	}
 
 	remoteUrl := fmt.Sprintf("%s/d", remote)
@@ -206,6 +250,8 @@ func drop(filePath string) (*ObjectReference, error) {
 
 	req.Header.Set("Content-Type", "application/octet-stream")
 
+	fmt.Printf("Uploading object ...\n")
+
 	resp, err := makeAuthenticatedRequest(client, req, remote)
 	if err != nil {
 		return nil, err
@@ -217,7 +263,7 @@ func drop(filePath string) (*ObjectReference, error) {
 	}
 
 	or := &ObjectReference{
-		oid: string(oid),
+		oid:      string(oid),
 		checksum: checksum(data),
 	}
 	return or, nil
@@ -243,6 +289,8 @@ func pull(object string, destPath string) error {
 		return fmt.Errorf("error building request: %v", err)
 	}
 
+	fmt.Printf("Downloading object ...\n")
+
 	resp, err := makeAuthenticatedRequest(client, req, remote)
 	if err != nil {
 		return err
@@ -253,8 +301,26 @@ func pull(object string, destPath string) error {
 		return fmt.Errorf("error reading response body: %v", err)
 	}
 
+	fmt.Printf("Verifying checksum ...\n")
 	if checksum(data) != or.checksum {
 		return fmt.Errorf("object integrity compromised, discarding unsafe pull")
+	}
+
+	encryptionKeyRawPath := viper.GetString(encryptionKeyFlag)
+	if encryptionKeyRawPath != "" {
+		fmt.Printf("Decrypting object with AES-CTR + HMAC-SHA-265 ...\n")
+
+		encryptionKey, err := loadEncryptionKey(encryptionKeyRawPath)
+		if err != nil {
+			return err
+		}
+
+		data, err = decrypt(encryptionKey, data)
+		if err != nil {
+			return fmt.Errorf("error decrypting object: %v", err)
+		}
+	} else {
+		fmt.Printf("Pulling without encryption, be careful!\n")
 	}
 
 	if err = ioutil.WriteFile(destPath, data, lib.ObjectPerms); err != nil {
@@ -405,7 +471,7 @@ func authenticate(remote string, keyName string) (string, error) {
 		return "", fmt.Errorf("response status: %s\n", resp.Status)
 	}
 
-	cipher, err := ioutil.ReadAll(resp.Body)
+	ciphertext, err := ioutil.ReadAll(resp.Body)
 
 	privKeyBytes, err := ioutil.ReadFile(privKeyPath)
 	if err != nil {
@@ -421,7 +487,7 @@ func authenticate(remote string, keyName string) (string, error) {
 		return "", fmt.Errorf("failed to parse private key: %v\n", err)
 	}
 
-	token, err := rsa.DecryptOAEP(sha512.New(), rand.Reader, privKey, cipher, []byte(lib.TokenCipherLabel))
+	token, err := rsa.DecryptOAEP(sha512.New(), rand.Reader, privKey, ciphertext, []byte(lib.TokenCipherLabel))
 	if err != nil {
 		return "", fmt.Errorf("failed to decrypt authorization token: %v\n", err)
 	}

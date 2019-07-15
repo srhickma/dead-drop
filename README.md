@@ -63,5 +63,6 @@ All config file fields are optional, however flags may need to be passed from th
 # Client configuration
 remote: http://localhost:4444 # The address of the server.
 private-key: private.pem # The private key to use when authenticating.
+encryption-key: encryption.key # The key to use when locally encrypting and decrypting objects.
 key-name: root # The name of the authorized-key (public key) to use on the server.
 ```
