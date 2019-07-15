@@ -36,7 +36,10 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&confFile, "config", "",
 		"config file (default is "+filepath.Join("$HOME", lib.DefaultConfigDir, lib.DefaultConfigName)+".yml)")
 
-	_ = rootCmd.Execute()
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Printf("FATAL: Failed to execute command: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func loadConfig() {

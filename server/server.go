@@ -4,12 +4,15 @@ import (
 	"dead-drop/lib"
 	"github.com/google/logger"
 	"github.com/gorilla/mux"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/urfave/negroni"
 	"io/ioutil"
 	"net/http"
 	"path/filepath"
 )
+
+var confFile string
 
 type Error string
 
@@ -22,8 +25,58 @@ func main() {
 	log := logger.Init("Logger", true, true, ioutil.Discard)
 	defer log.Close()
 
-	loadConfig()
+	cobra.OnInitialize(loadConfig)
 
+	var rootCmd = &cobra.Command{
+		Use: "deadd",
+		Run: func(cmd *cobra.Command, args []string) {
+			startServer()
+		},
+	}
+	rootCmd.PersistentFlags().StringVar(&confFile, "config", "", "config file path")
+
+	if err := rootCmd.Execute(); err != nil {
+		logger.Fatalf("Failed to execute command: %v\n", err)
+	}
+}
+
+func showGreeting() {
+	data, err := Asset("data/greeting.txt")
+	if err != nil {
+		return
+	}
+
+	println(string(data))
+}
+
+func loadConfig() {
+	if confFile != "" {
+		viper.SetConfigFile(confFile)
+	} else {
+		viper.SetConfigName(lib.DefaultConfigName)
+
+		viper.AddConfigPath(filepath.Join("/etc", lib.DefaultConfigDir))
+		viper.AddConfigPath(filepath.Join("$HOME", lib.DefaultConfigDir))
+		viper.AddConfigPath(".")
+	}
+
+	viper.SetDefault("addr", ":4444")
+	viper.SetDefault("data_dir", "~/dead-drop")
+	viper.SetDefault("keys_dir", filepath.Join("~", lib.DefaultConfigDir, "keys"))
+
+	err := viper.ReadInConfig()
+	if err != nil {
+		switch err.(type) {
+		case viper.ConfigFileNotFoundError:
+			logger.Info("No config file found, using the default configuration")
+			break
+		default:
+			logger.Warningf("Failed to load config file: %v \n", err)
+		}
+	}
+}
+
+func startServer() {
 	db := initDatabase(viper.GetString("data_dir"))
 	auth := newAuthenticator(viper.GetString("keys_dir"))
 	handler := &Handler{db, auth}
@@ -42,38 +95,5 @@ func main() {
 	logger.Infof("Starting server on %s", addr)
 	if err := http.ListenAndServe(addr, negroniServer); err != nil {
 		logger.Fatalf("Failed to start server: %v\n", err)
-	}
-}
-
-func showGreeting() {
-	data, err := Asset("data/greeting.txt")
-	if err != nil {
-		return
-	}
-
-	println(string(data))
-}
-
-func loadConfig() {
-	// TODO(shane) make the configuration name and directory configurable.
-	viper.SetConfigName(lib.DefaultConfigName)
-
-	viper.AddConfigPath(filepath.Join("/etc", lib.DefaultConfigDir))
-	viper.AddConfigPath(filepath.Join("$HOME", lib.DefaultConfigDir))
-	viper.AddConfigPath(".")
-
-	viper.SetDefault("addr", ":4444")
-	viper.SetDefault("data_dir", "~/dead-drop")
-	viper.SetDefault("keys_dir", filepath.Join("~", lib.DefaultConfigDir, "keys"))
-
-	err := viper.ReadInConfig()
-	if err != nil {
-		switch err.(type) {
-		case viper.ConfigFileNotFoundError:
-			logger.Info("No config file found, using the default configuration")
-			break
-		default:
-			logger.Warningf("Failed to load config file: %v \n", err)
-		}
 	}
 }
