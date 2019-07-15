@@ -11,6 +11,8 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/google/logger"
 	"github.com/mitchellh/go-homedir"
+	"io/ioutil"
+	"path/filepath"
 	"sync"
 	"time"
 )
@@ -115,6 +117,14 @@ func (auth *Authenticator) randomClaim() string {
 		bytes[i] = characters[b%modulo]
 	}
 	return string(bytes)
+}
+
+func (auth *Authenticator) getAuthorizedKey(keyName string) ([]byte, error) {
+	return ioutil.ReadFile(filepath.Join(auth.authorizedKeysDir, keyName))
+}
+
+func (auth *Authenticator) addAuthorizedKey(key []byte, keyName string) error {
+	return ioutil.WriteFile(filepath.Join(auth.authorizedKeysDir, keyName), key, lib.PublicKeyPerms)
 }
 
 func newSecret() []byte {

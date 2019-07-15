@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/rand"
+	"dead-drop/lib"
 	"github.com/google/logger"
 	"github.com/mitchellh/go-homedir"
 	"io/ioutil"
@@ -99,7 +100,7 @@ func (db *Database) randomOid(length int) string {
 }
 
 func (db *Database) writeObject(oid string, data []byte, dataDir *string) {
-	if err := ioutil.WriteFile(db.objectPath(oid, dataDir), data, 0660); err != nil {
+	if err := ioutil.WriteFile(db.objectPath(oid, dataDir), data, lib.ObjectPerms); err != nil {
 		logger.Errorf("Failed to write object %s to disk: %v\n", oid, err)
 	}
 }

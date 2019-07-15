@@ -31,6 +31,7 @@ func main() {
 
 	router.Handle("/d/{oid}", handler.authenticate(handler.handlePull)).Methods("GET")
 	router.Handle("/d", handler.authenticate(handler.handleDrop)).Methods("POST")
+	router.Handle("/add-key", handler.authenticate(handler.handleAddKey)).Methods("POST")
 	router.HandleFunc("/token", handler.handleToken).Methods("POST")
 
 	n := negroni.Classic()

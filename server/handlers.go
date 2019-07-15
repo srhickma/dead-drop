@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
-	"path/filepath"
 	"regexp"
 )
 
@@ -55,6 +54,27 @@ func (handler *Handler) handleDrop(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (handler *Handler) handleAddKey(w http.ResponseWriter, req *http.Request) {
+	var payload lib.AddKeyPayload
+	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+		logger.Errorf("Failed to decode payload: %v\n", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if !keyNameRegex.Match([]byte(payload.KeyName)) {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	logger.Infof("Adding public key %s\n", payload.KeyName)
+
+	if err := handler.auth.addAuthorizedKey(payload.Key, payload.KeyName); err != nil {
+		logger.Errorf("Failed to add authorized key: %v\n", err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+}
+
 func (handler *Handler) handleToken(w http.ResponseWriter, req *http.Request) {
 	var payload lib.TokenRequestPayload
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
@@ -68,7 +88,7 @@ func (handler *Handler) handleToken(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	storedKey, err := ioutil.ReadFile(filepath.Join(handler.auth.authorizedKeysDir, payload.KeyName))
+	storedKey, err := handler.auth.getAuthorizedKey(payload.KeyName)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
