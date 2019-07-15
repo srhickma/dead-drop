@@ -34,31 +34,21 @@ func main() {
 	rootCmd.AddCommand(setupDropCmd(), setupPullCmd(), setupAddKeyCmd(), setupKeyGenCmd())
 
 	rootCmd.PersistentFlags().StringVar(&confFile, "config", "",
-		"config file (default is "+filepath.Join("$HOME", lib.DefaultConfigDir, lib.DefaultConfigName)+".yml)")
+		"config file (default is "+filepath.Join("~", lib.DefaultConfigDir, lib.DefaultConfigName)+".yml)")
 
-	_ = rootCmd.Execute()
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Printf("FATAL: Failed to execute command: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func loadConfig() {
 	if confFile != "" {
 		viper.SetConfigFile(confFile)
 	} else {
-		home, err := homedir.Dir()
-		if err != nil {
-			fmt.Printf("Failed to load default configuration: %v\n", err)
-			return
-		}
-
-		filepath.Join(home)
-
-		confDir, err := homedir.Expand(filepath.Join("~", lib.DefaultConfigDir))
-		if err != nil {
-			fmt.Printf("Failed to load default configuration: %v\n", err)
-			return
-		}
-
-		viper.AddConfigPath(confDir)
+		viper.AddConfigPath(filepath.Join("~", lib.DefaultConfigDir))
 		viper.SetConfigName(lib.DefaultConfigName)
+		viper.SetConfigType(lib.DefaultConfigType)
 	}
 
 	if err := viper.ReadInConfig(); err != nil {

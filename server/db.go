@@ -16,6 +16,8 @@ func initDatabase(dataDirPath string) *Database {
 		logger.Fatalf("Failed to create data directory: %v\n", err)
 	}
 
+	logger.Infof("Starting database with data directory %s\n", dataDir)
+
 	objectMap := make(map[string]bool)
 	if err = indexDataDir(objectMap, &dataDir); err != nil {
 		logger.Fatalf("Failed to index data directory: %v\n", err)
@@ -36,6 +38,8 @@ func createDataDir(path string) (string, error) {
 }
 
 func indexDataDir(objectMap map[string]bool, dataDir *string) error {
+	logger.Infof("Indexing data directory for existing objects")
+
 	files, err := ioutil.ReadDir(*dataDir)
 	if err != nil {
 		return err

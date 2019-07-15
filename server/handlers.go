@@ -90,6 +90,7 @@ func (handler *Handler) handleToken(w http.ResponseWriter, req *http.Request) {
 
 	storedKey, err := handler.auth.getAuthorizedKey(payload.KeyName)
 	if err != nil {
+		logger.Errorf("Failed to load authorized key: %v\n", err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
