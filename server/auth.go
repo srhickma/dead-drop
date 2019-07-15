@@ -55,10 +55,6 @@ func (auth *Authenticator) secretRotator() {
 	}
 }
 
-func (auth *Authenticator) checkPublicKey(pkeyBytes []byte) bool {
-	return true
-}
-
 func (auth *Authenticator) generateToken(pkeyBytes []byte) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, jwt.MapClaims{
 		"ran": auth.randomClaim(),
