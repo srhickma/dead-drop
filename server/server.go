@@ -12,6 +12,11 @@ import (
 	"path/filepath"
 )
 
+const ttlMinFlag = "ttl_min"
+const dataDirFlag = "data_dir"
+const keysDirFlag = "keys_dir"
+const addrFlag = "addr"
+
 var confFile string
 
 type Error string
@@ -66,9 +71,10 @@ func loadConfig() {
 		)
 	}
 
-	viper.SetDefault("addr", ":4444")
-	viper.SetDefault("data_dir", "~/dead-drop")
-	viper.SetDefault("keys_dir", filepath.Join("~", lib.DefaultConfigDir, "keys"))
+	viper.SetDefault(addrFlag, ":4444")
+	viper.SetDefault(dataDirFlag, "~/dead-drop")
+	viper.SetDefault(keysDirFlag, filepath.Join("~", lib.DefaultConfigDir, "keys"))
+	viper.SetDefault(ttlMinFlag, 1440)
 
 	err := viper.ReadInConfig()
 	if err != nil {
@@ -85,8 +91,8 @@ func loadConfig() {
 }
 
 func startServer() {
-	db := initDatabase(viper.GetString("data_dir"))
-	auth := newAuthenticator(viper.GetString("keys_dir"))
+	db := initDatabase(viper.GetString(dataDirFlag), viper.GetUint(ttlMinFlag))
+	auth := newAuthenticator(viper.GetString(keysDirFlag))
 	handler := &Handler{db, auth}
 
 	router := mux.NewRouter()
@@ -99,7 +105,7 @@ func startServer() {
 	negroniServer := negroni.Classic()
 	negroniServer.UseHandler(router)
 
-	addr := viper.GetString("addr")
+	addr := viper.GetString(addrFlag)
 	logger.Infof("Starting server on %s", addr)
 	if err := http.ListenAndServe(addr, negroniServer); err != nil {
 		logger.Fatalf("Failed to start server: %v\n", err)
