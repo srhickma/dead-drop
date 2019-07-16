@@ -26,6 +26,9 @@ func (handler *Handler) handlePull(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
+	} else if data == nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
 	}
 
 	_, err = w.Write(data)
