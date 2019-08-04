@@ -13,6 +13,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"github.com/awnumar/memguard"
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -207,16 +208,17 @@ func checksum(data []byte) string {
 	return base64.URLEncoding.EncodeToString(checksumBytes[:])
 }
 
-func loadEncryptionKey(rawPath string) ([]byte, error) {
+func loadEncryptionKey(rawPath string) (*memguard.LockedBuffer, error) {
 	encryptionKeyPath, err := homedir.Expand(rawPath)
 	if err != nil {
 		return nil, fmt.Errorf("error locating encryption key: %v", err)
 	}
 
-	encryptionKey, err := ioutil.ReadFile(encryptionKeyPath)
+	encryptionKeyReader, err := os.Open(encryptionKeyPath)
 	if err != nil {
 		return nil, fmt.Errorf("error reading encryption key '%s': %v", encryptionKeyPath, err)
 	}
+	encryptionKey := memguard.NewBufferFromEntireReader(encryptionKeyReader)
 
 	return encryptionKey, nil
 }
@@ -325,10 +327,12 @@ func pull(object string, destPath string) error {
 			return err
 		}
 
-		data, err = decrypt(encryptionKey, data)
+		dataBuf, err := decrypt(encryptionKey, data)
 		if err != nil {
 			return fmt.Errorf("error decrypting object: %v", err)
 		}
+		defer dataBuf.Destroy()
+		data = dataBuf.Bytes()
 	} else {
 		fmt.Printf("WARN: Pulling without encryption, be careful!\n")
 	}
