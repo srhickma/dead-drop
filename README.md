@@ -51,7 +51,7 @@ $ make build
 ```
 
 # Server
-The server provides the api for storing and loading objects, which should be run on some publically acessible server.
+The server provides the api for storing and loading objects, which should be run on some publicly accessible server.
 ```
 Usage:
   deadd [flags]
@@ -63,8 +63,10 @@ All config file fields are optional, and defaults will be used if they are not s
 ```
 # Server configuration
 addr: ":4444" # The hostname and port to start the server on.
-data_dir: ~/dead-drop # The directory where objects will be stored.
-keys_dir: ~/.dead-drop/keys # The directory where authorized rsa public keys should be stored.
+data-dir: ~/dead-drop # The directory where objects will be stored.
+keys-dir: ~/.dead-drop/keys # The directory where authorized rsa public keys should be stored.
+ttl-min: 1440 # The number of minutes after which objects will be garbage collected.
+destructive-read: true # If true, pulls will destroy objects.
 ```
 
 # Client
