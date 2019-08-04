@@ -32,9 +32,13 @@ func initDatabase(dataDirPath string, ttlMin uint, destructiveRead bool) *Databa
 	}
 	heap.Init(expHeap)
 
+	lock := &sync.RWMutex{}
+
 	db := &Database{
+		lock:             lock,
 		objectMap:        objectMap,
 		expHeap:          expHeap,
+		heapCleanCond:    sync.NewCond(lock),
 		dirtyHeapBlocks:  0,
 		heapCleanPending: false,
 		dataDir:          dataDir,
@@ -77,9 +81,10 @@ func indexDataDir(objectMap map[string]bool, expHeap *ExpirationHeap, dataDir *s
 }
 
 type Database struct {
-	lock             sync.RWMutex
+	lock             *sync.RWMutex
 	objectMap        map[string]bool
 	expHeap          *ExpirationHeap
+	heapCleanCond    *sync.Cond
 	dirtyHeapBlocks  uint
 	heapCleanPending bool
 	dataDir          string
@@ -109,6 +114,10 @@ func (db *Database) drop(bytes []byte) string {
 	const maxOidAttempts = 16
 
 	db.lock.Lock()
+
+	for db.heapCleanPending {
+		db.heapCleanCond.Wait()
+	}
 
 	oid := ""
 	attempt := 1
@@ -144,6 +153,10 @@ func (db *Database) expiryJob() {
 		expired := make([]*ObjectInfo, 0)
 
 		db.lock.Lock()
+
+		for db.heapCleanPending {
+			db.heapCleanCond.Wait()
+		}
 
 		for !db.expHeap.IsEmpty() && db.expHeap.Peek().IsExpired(db.ttlMin) {
 			oi := heap.Pop(db.expHeap).(*ObjectInfo)
@@ -213,7 +226,6 @@ func (db *Database) destroyObject(oid string) {
 
 	pastNumberThreshold := db.dirtyHeapBlocks > heapCleanThresholdNumber
 	pastPercentageThreshold := float32(db.dirtyHeapBlocks)/float32(db.expHeap.Len()) > heapCleanThresholdPercent
-	println(float32(db.dirtyHeapBlocks)/float32(db.expHeap.Len()))
 	if !db.heapCleanPending && pastNumberThreshold && pastPercentageThreshold {
 		db.heapCleanPending = true
 		shouldStartHeapCleaner = true
