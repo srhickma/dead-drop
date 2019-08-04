@@ -28,10 +28,10 @@ type Authenticator struct {
 func newAuthenticator(authorizedKeysDirPath string) *Authenticator {
 	authorizedKeysDir, err := homedir.Expand(authorizedKeysDirPath)
 	if err != nil {
-		logger.Fatalf("Failed to expand authorized keys file path: %v\n", err)
+		logger.Fatalf("Failed to expand authorized keys file path: %v", err)
 	}
 
-	logger.Infof("Starting authenticator with authorized-keys directory %s\n", authorizedKeysDir)
+	logger.Infof("Starting authenticator with authorized-keys directory %s", authorizedKeysDir)
 
 	authenticator := &Authenticator{
 		secret:            newSecret(),
@@ -70,12 +70,12 @@ func (auth *Authenticator) generateToken(pkeyBytes []byte) (string, error) {
 
 	pkeyDer, _ := pem.Decode(pkeyBytes)
 	if pkeyDer == nil {
-		logger.Errorf("Failed to decode pem bytes\n")
+		logger.Errorf("Failed to decode pem bytes")
 		return "", UnauthorizedErr
 	}
 	pkey, err := x509.ParsePKCS1PublicKey(pkeyDer.Bytes)
 	if err != nil {
-		logger.Errorf("Failed to parse public key: %v\n", err)
+		logger.Errorf("Failed to parse public key: %v", err)
 		return "", UnauthorizedErr
 	}
 
@@ -107,7 +107,7 @@ func (auth *Authenticator) randomClaim() string {
 
 	bytes := make([]byte, length)
 	if _, err := rand.Read(bytes); err != nil {
-		logger.Fatalf("Failed to generate random token claim: %v\n", err)
+		logger.Fatalf("Failed to generate random token claim: %v", err)
 	}
 
 	modulo := byte(len(characters))
@@ -130,7 +130,7 @@ func newSecret() []byte {
 
 	bytes := make([]byte, length)
 	if _, err := rand.Read(bytes); err != nil {
-		logger.Fatalf("Failed to generate random secret: %v\n", err)
+		logger.Fatalf("Failed to generate random secret: %v", err)
 	}
 
 	return bytes
