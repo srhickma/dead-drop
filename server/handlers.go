@@ -33,7 +33,7 @@ func (handler *Handler) handlePull(w http.ResponseWriter, req *http.Request) {
 
 	_, err = w.Write(data)
 	if err != nil {
-		logger.Errorf("Failed to write object response: %v\n", err)
+		logger.Errorf("Failed to write object response: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -42,7 +42,7 @@ func (handler *Handler) handlePull(w http.ResponseWriter, req *http.Request) {
 func (handler *Handler) handleDrop(w http.ResponseWriter, req *http.Request) {
 	bytes, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		logger.Errorf("Failed to read object body: %v\n", err)
+		logger.Errorf("Failed to read object body: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -51,7 +51,7 @@ func (handler *Handler) handleDrop(w http.ResponseWriter, req *http.Request) {
 
 	_, err = io.WriteString(w, oid)
 	if err != nil {
-		logger.Errorf("Failed to write object response: %v\n", err)
+		logger.Errorf("Failed to write object response: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -60,7 +60,7 @@ func (handler *Handler) handleDrop(w http.ResponseWriter, req *http.Request) {
 func (handler *Handler) handleAddKey(w http.ResponseWriter, req *http.Request) {
 	var payload lib.AddKeyPayload
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		logger.Errorf("Failed to decode payload: %v\n", err)
+		logger.Errorf("Failed to decode payload: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -70,10 +70,10 @@ func (handler *Handler) handleAddKey(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	logger.Infof("Adding public key %s\n", payload.KeyName)
+	logger.Infof("Adding public key %s", payload.KeyName)
 
 	if err := handler.auth.addAuthorizedKey(payload.Key, payload.KeyName); err != nil {
-		logger.Errorf("Failed to add authorized key: %v\n", err)
+		logger.Errorf("Failed to add authorized key: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
 }
@@ -81,7 +81,7 @@ func (handler *Handler) handleAddKey(w http.ResponseWriter, req *http.Request) {
 func (handler *Handler) handleToken(w http.ResponseWriter, req *http.Request) {
 	var payload lib.TokenRequestPayload
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		logger.Errorf("Failed to decode authentication payload: %v\n", err)
+		logger.Errorf("Failed to decode authentication payload: %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -93,7 +93,7 @@ func (handler *Handler) handleToken(w http.ResponseWriter, req *http.Request) {
 
 	storedKey, err := handler.auth.getAuthorizedKey(payload.KeyName)
 	if err != nil {
-		logger.Errorf("Failed to load authorized key: %v\n", err)
+		logger.Errorf("Failed to load authorized key: %v", err)
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
@@ -103,14 +103,14 @@ func (handler *Handler) handleToken(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
 	} else if err != nil {
-		logger.Errorf("Failed to generate authorization token: %v\n", err)
+		logger.Errorf("Failed to generate authorization token: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	_, err = io.WriteString(w, token)
 	if err != nil {
-		logger.Errorf("Failed to write authorization token response: %v\n", err)
+		logger.Errorf("Failed to write authorization token response: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

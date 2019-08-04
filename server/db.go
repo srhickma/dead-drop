@@ -20,15 +20,15 @@ const heapCleanThresholdPercent = 0.5
 func initDatabase(dataDirPath string, ttlMin uint, destructiveRead bool) *Database {
 	dataDir, err := createDataDir(dataDirPath)
 	if err != nil {
-		logger.Fatalf("Failed to create data directory: %v\n", err)
+		logger.Fatalf("Failed to create data directory: %v", err)
 	}
 
-	logger.Infof("Starting database with data directory %s\n", dataDir)
+	logger.Infof("Starting database with data directory %s", dataDir)
 
 	objectMap := make(map[string]bool)
 	expHeap := &ExpirationHeap{}
 	if err = indexDataDir(objectMap, expHeap, &dataDir); err != nil {
-		logger.Fatalf("Failed to index data directory: %v\n", err)
+		logger.Fatalf("Failed to index data directory: %v", err)
 	}
 	heap.Init(expHeap)
 
@@ -128,7 +128,7 @@ func (db *Database) drop(bytes []byte) string {
 		}
 		attempt++
 		if attempt > maxOidAttempts {
-			logger.Error("Key-space is very full, data is being overwritten\n")
+			logger.Error("Key-space is very full, data is being overwritten")
 			break
 		}
 	}
@@ -171,7 +171,7 @@ func (db *Database) expiryJob() {
 		db.lock.Unlock()
 
 		for _, oi := range expired {
-			logger.Infof("Removing expired object %s\n", oi.oid)
+			logger.Infof("Removing expired object %s", oi.oid)
 			db.removeObject(oi.oid)
 		}
 	}
@@ -245,7 +245,7 @@ func (db *Database) randomOid(length int) string {
 
 	bytes := make([]byte, length)
 	if _, err := rand.Read(bytes); err != nil {
-		logger.Fatalf("Failed to generate random oid: %v\n", err)
+		logger.Fatalf("Failed to generate random oid: %v", err)
 	}
 
 	modulo := byte(len(characters))
@@ -257,21 +257,21 @@ func (db *Database) randomOid(length int) string {
 
 func (db *Database) writeObject(oid string, data []byte) {
 	if err := ioutil.WriteFile(db.objectPath(oid), data, lib.ObjectPerms); err != nil {
-		logger.Errorf("Failed to write object %s to disk: %v\n", oid, err)
+		logger.Errorf("Failed to write object %s to disk: %v", oid, err)
 	}
 }
 
 func (db *Database) readObject(oid string) ([]byte, error) {
 	data, err := ioutil.ReadFile(db.objectPath(oid))
 	if err != nil {
-		logger.Errorf("Failed to read object %s from disk: %v\n", oid, err)
+		logger.Errorf("Failed to read object %s from disk: %v", oid, err)
 	}
 	return data, err
 }
 
 func (db *Database) removeObject(oid string) {
 	if err := os.Remove(db.objectPath(oid)); err != nil {
-		logger.Errorf("Failed to remove object %s: %v\n", oid, err)
+		logger.Errorf("Failed to remove object %s: %v", oid, err)
 	}
 }
 

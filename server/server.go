@@ -47,7 +47,7 @@ func main() {
 		"config file (default is "+filepath.Join("~", lib.DefaultConfigDir, lib.DefaultConfigName)+".yml)")
 
 	if err := rootCmd.Execute(); err != nil {
-		logger.Fatalf("Failed to execute command: %v\n", err)
+		logger.Fatalf("Failed to execute command: %v", err)
 	}
 }
 
@@ -63,7 +63,7 @@ func showGreeting() {
 func loadConfig() {
 	if confFile != "" {
 		viper.SetConfigFile(confFile)
-		logger.Infof("Loading configuration from %s\n", confFile)
+		logger.Infof("Loading configuration from %s", confFile)
 	} else {
 		dir := filepath.Join("$HOME", lib.DefaultConfigDir)
 		viper.AddConfigPath(dir)
@@ -89,10 +89,10 @@ func loadConfig() {
 			logger.Info("No config file found, using the default configuration")
 			break
 		default:
-			logger.Warningf("Failed to load config file: %v\n", err)
+			logger.Warningf("Failed to load config file: %v", err)
 		}
 	} else {
-		logger.Infof("Successfully loaded configuration\n")
+		logger.Infof("Successfully loaded configuration")
 	}
 }
 
@@ -113,24 +113,24 @@ func startServer() {
 
 	tlsCert := viper.GetString(tlsCertFlag)
 	if len(tlsCert) == 0 {
-		logger.Fatalf("A tls certificate must be specified\n")
+		logger.Fatalf("A tls certificate must be specified")
 	}
 	tlsCert, err := homedir.Expand(tlsCert)
 	if err != nil {
-		logger.Fatalf("Failed to load tls certificate: %v\n", err)
+		logger.Fatalf("Failed to load tls certificate: %v", err)
 	}
 
 	tlsKey := viper.GetString(tlsKeyFlag)
 	if len(tlsKey) == 0 {
-		logger.Fatalf("A tls key must be specified\n")
+		logger.Fatalf("A tls key must be specified")
 	}
 	tlsKey, err = homedir.Expand(tlsKey)
 	if err != nil {
-		logger.Fatalf("Failed to load tls key: %v\n", err)
+		logger.Fatalf("Failed to load tls key: %v", err)
 	}
 
 	addr := viper.GetString(addrFlag)
-	logger.Infof("Starting server on %s\n", addr)
+	logger.Infof("Starting server on %s", addr)
 
 	tlsConfig := &tls.Config{
 		MinVersion:               tls.VersionTLS12,
@@ -152,6 +152,6 @@ func startServer() {
 	}
 
 	if err := server.ListenAndServeTLS(tlsCert, tlsKey); err != nil {
-		logger.Fatalf("Failed to start server: %v\n", err)
+		logger.Fatalf("Failed to start server: %v", err)
 	}
 }
