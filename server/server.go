@@ -81,6 +81,8 @@ func loadConfig() {
 	viper.SetDefault(keysDirFlag, filepath.Join("~", lib.DefaultConfigDir, "keys"))
 	viper.SetDefault(ttlMinFlag, 1440)
 	viper.SetDefault(destructiveReadFlag, true)
+	viper.SetDefault(tlsCertFlag, filepath.Join("~", lib.DefaultConfigDir, "server.crt"))
+	viper.SetDefault(tlsKeyFlag, filepath.Join("~", lib.DefaultConfigDir, "server.key"))
 
 	err := viper.ReadInConfig()
 	if err != nil {

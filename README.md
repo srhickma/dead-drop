@@ -59,12 +59,15 @@ Usage:
 ### Configuration
 The default config file location is `~/.dead-drop/conf.yml`, but different locations can be specified with the `--config` flag.
 
-All config file fields are optional, and defaults will be used if they are not specified. The following is the default configuration:
+All config file fields are optional, and defaults will be used if they are not specified.
+The following is the default configuration:
 ```
 # Server configuration
 addr: ":4444" # The hostname and port to start the server on.
 data-dir: ~/dead-drop # The directory where objects will be stored.
 keys-dir: ~/.dead-drop/keys # The directory where authorized rsa public keys should be stored.
+tls-cert: ~/.dead-drop/server.crt # The tls certificate for the server.
+tls-key: ~/.dead-drop/server.key # The tls key for the server.
 ttl-min: 1440 # The number of minutes after which objects will be garbage collected.
 destructive-read: true # If true, pulls will destroy objects.
 ```
@@ -85,7 +88,8 @@ Usage:
   dead pull <oid> <destination path> [flags]
 ```
 #### `add-key`
-Pushes a public key to the authorized-keys directory of the server, so that this key can make authenticated requests to the server. Of course, this command requires authentication, so the very first (or "root") key will need to be added to the server manually (e.g. via `scp`).
+Pushes a public key to the authorized-keys directory of the server, so that this key can make authenticated requests to the server.
+Of course, this command requires authentication, so the very first (or "root") key will need to be added to the server manually (e.g. via `scp`).
 ```
 Usage:
   dead add-key <public key path> <key name> [flags]
@@ -98,11 +102,13 @@ Usage:
 ```
 ### Configuration
 The default config file location is `~/.dead-drop/conf.yml`, but different locations can be specified with the `--config` flag.
-All config file fields are optional, however flags may need to be passed from the command line if they are not present in the config file (e.g. `--remote ...` flag if `remote: ...` is not in the config). The following is an example configuration:
+All config file fields are optional, however flags may need to be passed from the command line if they are not present in the config file (e.g. `--remote ...` flag if `remote: ...` is not in the config).
+The following is an example configuration:
 ```
 # Client configuration
-remote: http://localhost:4444 # The address of the server.
+remote: https://localhost:4444 # The address of the server.
 private-key: private.pem # The private key to use when authenticating.
 encryption-key: encryption.key # The key to use when locally encrypting and decrypting objects.
 key-name: root # The name of the authorized-key (public key) to use on the server.
+insecure-skip-verify: false # If true, tls certificate verification will be skipped.
 ```
