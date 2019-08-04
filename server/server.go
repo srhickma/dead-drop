@@ -12,10 +12,11 @@ import (
 	"path/filepath"
 )
 
-const ttlMinFlag = "ttl_min"
-const dataDirFlag = "data_dir"
-const keysDirFlag = "keys_dir"
+const ttlMinFlag = "ttl-min"
+const dataDirFlag = "data-dir"
+const keysDirFlag = "keys-dir"
 const addrFlag = "addr"
+const destructiveReadFlag = "destructive-read"
 
 var confFile string
 
@@ -75,6 +76,7 @@ func loadConfig() {
 	viper.SetDefault(dataDirFlag, "~/dead-drop")
 	viper.SetDefault(keysDirFlag, filepath.Join("~", lib.DefaultConfigDir, "keys"))
 	viper.SetDefault(ttlMinFlag, 1440)
+	viper.SetDefault(destructiveReadFlag, true)
 
 	err := viper.ReadInConfig()
 	if err != nil {
@@ -91,7 +93,7 @@ func loadConfig() {
 }
 
 func startServer() {
-	db := initDatabase(viper.GetString(dataDirFlag), viper.GetUint(ttlMinFlag))
+	db := initDatabase(viper.GetString(dataDirFlag), viper.GetUint(ttlMinFlag), viper.GetBool(destructiveReadFlag))
 	auth := newAuthenticator(viper.GetString(keysDirFlag))
 	handler := &Handler{db, auth}
 
