@@ -1,9 +1,11 @@
 package main
 
 import (
+	"crypto/tls"
 	"dead-drop/lib"
 	"github.com/google/logger"
 	"github.com/gorilla/mux"
+	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/urfave/negroni"
@@ -17,6 +19,8 @@ const dataDirFlag = "data-dir"
 const keysDirFlag = "keys-dir"
 const addrFlag = "addr"
 const destructiveReadFlag = "destructive-read"
+const tlsCertFlag = "tls-cert"
+const tlsKeyFlag = "tls-key"
 
 var confFile string
 
@@ -85,7 +89,7 @@ func loadConfig() {
 			logger.Info("No config file found, using the default configuration")
 			break
 		default:
-			logger.Warningf("Failed to load config file: %v \n", err)
+			logger.Warningf("Failed to load config file: %v\n", err)
 		}
 	} else {
 		logger.Infof("Successfully loaded configuration\n")
@@ -107,9 +111,47 @@ func startServer() {
 	negroniServer := negroni.Classic()
 	negroniServer.UseHandler(router)
 
+	tlsCert := viper.GetString(tlsCertFlag)
+	if len(tlsCert) == 0 {
+		logger.Fatalf("A tls certificate must be specified\n")
+	}
+	tlsCert, err := homedir.Expand(tlsCert)
+	if err != nil {
+		logger.Fatalf("Failed to load tls certificate: %v\n", err)
+	}
+
+	tlsKey := viper.GetString(tlsKeyFlag)
+	if len(tlsKey) == 0 {
+		logger.Fatalf("A tls key must be specified\n")
+	}
+	tlsKey, err = homedir.Expand(tlsKey)
+	if err != nil {
+		logger.Fatalf("Failed to load tls key: %v\n", err)
+	}
+
 	addr := viper.GetString(addrFlag)
-	logger.Infof("Starting server on %s", addr)
-	if err := http.ListenAndServe(addr, negroniServer); err != nil {
+	logger.Infof("Starting server on %s\n", addr)
+
+	tlsConfig := &tls.Config{
+		MinVersion:               tls.VersionTLS12,
+		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
+		PreferServerCipherSuites: true,
+		CipherSuites: []uint16{
+			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
+			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
+			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+		},
+	}
+
+	server := &http.Server{
+		Addr:         addr,
+		Handler:      negroniServer,
+		TLSConfig:    tlsConfig,
+		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),
+	}
+
+	if err := server.ListenAndServeTLS(tlsCert, tlsKey); err != nil {
 		logger.Fatalf("Failed to start server: %v\n", err)
 	}
 }
