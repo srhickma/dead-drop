@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/sha256"
+	"dead-drop/client/ghash"
 	"fmt"
 	"github.com/awnumar/memguard"
 )
@@ -19,7 +20,7 @@ func encrypt(key *memguard.LockedBuffer, data []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	ciphertext := memguard.NewBufferRandom(ivLength + len(data) + 1)
+	ciphertext := memguard.NewBufferRandom(ivLength + len(data))
 	defer ciphertext.Destroy()
 
 	iv := ciphertext.Bytes()[:ivLength]
@@ -75,14 +76,14 @@ func decrypt(key *memguard.LockedBuffer, message []byte) (*memguard.LockedBuffer
 }
 
 func splitKeyHash(keyBuf *memguard.LockedBuffer) (*memguard.LockedBuffer, *memguard.LockedBuffer) {
-	sum := sha256.Sum256(keyBuf.Bytes())
-
-	key1 := memguard.NewBufferFromBytes(sum[:16])
-	key2 := memguard.NewBufferFromBytes(sum[16:])
-
-	memguard.WipeBytes(sum[:])
+	sum := ghash.Sum256(keyBuf)
+	defer sum.Destroy()
 
 	keyBuf.Destroy()
+
+	sum.Melt()
+	key1 := memguard.NewBufferFromBytes(sum.Bytes()[:16])
+	key2 := memguard.NewBufferFromBytes(sum.Bytes()[16:])
 
 	return key1, key2
 }
