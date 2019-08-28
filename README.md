@@ -2,9 +2,10 @@
 Secure anonymous file transfer and storage in the cloud.
 
 # Example Usage
-Start server:
+Start server with self-signed TLS certificate:
 ```
 $ mkdir -p ~/.dead-drop/keys
+$ openssl req -x509 -nodes -newkey rsa:2048 -keyout ~/.dead-drop/server.key -out ~/.dead-drop/server.crt
 $ bin/deadd
 ```
 Generate an rsa key-pair, and copy the public key to the server:
@@ -20,14 +21,16 @@ $ echo 'put your secret here' >> enc.key
 ```
 Drop an object:
 ```
-$ bin/dead drop README.md --private-key private.pem --encryption-key enc.key --key-name root --remote http://localhost:4444
+$ bin/dead drop README.md --private-key private.pem --encryption-key enc.key --key-name root --remote http://localhost:4444 --insecure-skip-verify
+WARN: Skipping tls certificate verification, be careful!
 Encrypting object with AES-CTR + HMAC-SHA-265 ...
 Uploading object ...
 Dropped README.md -> nidavyihdlxwbbda#O3vVpwfUHqC2mWPPDIEVekzuKT2IeQ4BeHbkbCYg8lk=
 ```
 Pull the object:
 ```
-$ bin/dead pull nidavyihdlxwbbda#O3vVpwfUHqC2mWPPDIEVekzuKT2IeQ4BeHbkbCYg8lk= dest-file --private-key private.pem --encryption-key enc.key --key-name root --remote http://localhost:4444
+$ bin/dead pull nidavyihdlxwbbda#O3vVpwfUHqC2mWPPDIEVekzuKT2IeQ4BeHbkbCYg8lk= dest-file --private-key private.pem --encryption-key enc.key --key-name root --remote http://localhost:4444 --insecure-skip-verify
+WARN: Skipping tls certificate verification, be careful!
 Downloading object ...
 Verifying checksum ...
 Decrypting object with AES-CTR + HMAC-SHA-265 ...
