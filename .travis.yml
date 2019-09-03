@@ -2,6 +2,10 @@ language: go
 go:
   - master
 
+before_script:
+  - go get -u github.com/jteeuwen/go-bindata/...
+  - sudo cp $GOPATH/bin/go-bindata /usr/bin/go-bindata
+
 script:
   - make clean
   - make build
