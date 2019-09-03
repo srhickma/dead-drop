@@ -1,0 +1,8 @@
+language: go
+go:
+  - master
+
+script:
+  - make clean
+  - make build
+  - make test
