@@ -31,3 +31,20 @@ func TestHeapCleanerWithConcurrentDrops(t *testing.T) {
 func TestHeapCleanWithExpiry(t *testing.T) {
 	// TODO(shane)
 }
+
+func TestDbLockingStress(t *testing.T) {
+	// TODO(shane)
+}
+
+func TestConcurrentReadAndExpiry(t *testing.T) {
+	// TODO(shane)
+}
+
+func TestConcurrentReadAndRemoval(t *testing.T) {
+	// TODO(shane)
+}
+
+func TestStaleObjectMap(t *testing.T) {
+	// TODO(shane)
+}
+
