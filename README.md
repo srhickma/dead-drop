@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.com/srhickma/dead-drop.svg?branch=master)](https://travis-ci.com/srhickma/dead-drop)
+
 # dead-drop
 Secure anonymous file transfer and storage in the cloud.
 
