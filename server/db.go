@@ -210,6 +210,7 @@ func (db *Database) heapCleanerJob() {
 	db.expHeap = &newExpHeap
 	db.dirtyHeapBlocks -= dirtyBlocks
 	db.heapCleanPending = false
+	db.heapCleanCond.Broadcast()
 
 	db.lock.Unlock()
 
