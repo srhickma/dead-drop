@@ -223,8 +223,14 @@ func loadEncryptionKey(rawPath string) (*memguard.LockedBuffer, error) {
 	return encryptionKey, nil
 }
 
+// TODO(shane) this function is quite long, try to split it up.
 func drop(filePath string) (*ObjectReference, error) {
 	remote, err := getStringFlag(remoteFlag)
+	if err != nil {
+		return nil, err
+	}
+
+	encryptionKeyRawPath, err := getStringFlag(encryptionKeyFlag)
 	if err != nil {
 		return nil, err
 	}
@@ -234,21 +240,16 @@ func drop(filePath string) (*ObjectReference, error) {
 		return nil, fmt.Errorf("error reading file '%s': %v", filePath, err)
 	}
 
-	encryptionKeyRawPath := viper.GetString(encryptionKeyFlag)
-	if encryptionKeyRawPath != "" {
-		fmt.Printf("Encrypting object with AES-CTR + HMAC-SHA-265 ...\n")
+	fmt.Printf("Encrypting object with AES-CTR + HMAC-SHA-265 ...\n")
 
-		encryptionKey, err := loadEncryptionKey(encryptionKeyRawPath)
-		if err != nil {
-			return nil, err
-		}
+	encryptionKey, err := loadEncryptionKey(encryptionKeyRawPath)
+	if err != nil {
+		return nil, err
+	}
 
-		data, err = encrypt(encryptionKey, data)
-		if err != nil {
-			return nil, fmt.Errorf("error encrypting object: %v", err)
-		}
-	} else {
-		fmt.Printf("WARN: Dropping without encryption, be careful!\n")
+	data, err = encrypt(encryptionKey, data)
+	if err != nil {
+		return nil, fmt.Errorf("error encrypting object: %v", err)
 	}
 
 	remoteUrl := fmt.Sprintf("%s/d", remote)
@@ -281,6 +282,7 @@ func drop(filePath string) (*ObjectReference, error) {
 	return or, nil
 }
 
+// TODO(shane) this function is quite long, try to split it up.
 func pull(object string, destPath string) error {
 	or, err := parseObjectReference(object)
 	if err != nil {
@@ -288,6 +290,11 @@ func pull(object string, destPath string) error {
 	}
 
 	remote, err := getStringFlag(remoteFlag)
+	if err != nil {
+		return err
+	}
+
+	encryptionKeyRawPath, err := getStringFlag(encryptionKeyFlag)
 	if err != nil {
 		return err
 	}
@@ -318,24 +325,19 @@ func pull(object string, destPath string) error {
 		return fmt.Errorf("object integrity compromised, discarding unsafe pull")
 	}
 
-	encryptionKeyRawPath := viper.GetString(encryptionKeyFlag)
-	if encryptionKeyRawPath != "" {
-		fmt.Printf("Decrypting object with AES-CTR + HMAC-SHA-265 ...\n")
+	fmt.Printf("Decrypting object with AES-CTR + HMAC-SHA-265 ...\n")
 
-		encryptionKey, err := loadEncryptionKey(encryptionKeyRawPath)
-		if err != nil {
-			return err
-		}
-
-		dataBuf, err := decrypt(encryptionKey, data)
-		if err != nil {
-			return fmt.Errorf("error decrypting object: %v", err)
-		}
-		defer dataBuf.Destroy()
-		data = dataBuf.Bytes()
-	} else {
-		fmt.Printf("WARN: Pulling without encryption, be careful!\n")
+	encryptionKey, err := loadEncryptionKey(encryptionKeyRawPath)
+	if err != nil {
+		return err
 	}
+
+	dataBuf, err := decrypt(encryptionKey, data)
+	if err != nil {
+		return fmt.Errorf("error decrypting object: %v", err)
+	}
+	defer dataBuf.Destroy()
+	data = dataBuf.Bytes()
 
 	if err = ioutil.WriteFile(destPath, data, lib.ObjectPerms); err != nil {
 		return fmt.Errorf("error writing object to '%s': %v", destPath, err)
