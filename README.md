@@ -3,6 +3,8 @@
 # dead-drop
 Secure anonymous file transfer and storage in the cloud.
 
+**Disclaimer: No external security auditing has been conducted on this software, use at your own risk!**
+
 # Example Usage
 Start server with self-signed TLS certificate:
 ```
